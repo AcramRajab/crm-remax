@@ -46,3 +46,6 @@ Thumbs.db
 # n8n (credenciais locais; exportar apenas workflows sem segredos)
 n8n/.n8n/
 n8n/**/credentials*.json
+
+# Fontes brutas de logo (WhatsApp) — usar os .webp processados em assets/
+"novos logos remax/"
