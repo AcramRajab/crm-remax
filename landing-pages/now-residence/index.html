@@ -501,10 +501,15 @@ document.querySelectorAll('[data-topo]').forEach(function(el){
 document.getElementById("leadForm").addEventListener("submit",function(e){
   e.preventDefault();
   var data=Object.fromEntries(new FormData(this).entries());
+  /* Dispara o Lead. O sendBeacon sobrevive à navegação; assim que o
+     ingest_url (n8n) estiver configurado, o lead flui pro CRM sem mexer aqui. */
   if(window.NOW_TRACK) NOW_TRACK("Lead",Object.assign({channel:"form"},data));
-  document.getElementById("formMsg").textContent="Recebido! Um corretor entrará em contato em breve. ✅";
-  document.getElementById("formMsg").style.color="var(--c-accent)";
-  this.reset();
+  /* Guarda o nome pra personalizar a página de obrigado. */
+  try{ sessionStorage.setItem("lead_nome",data.nome||""); }catch(err){}
+  /* Padrão de todo projeto: redireciona pra página de obrigado. */
+  var msg=document.getElementById("formMsg");
+  if(msg){ msg.textContent="Enviando…"; msg.style.color="var(--c-accent)"; }
+  window.location.href="obrigado.html";
 });
 
 /* ===================== ANIMAÇÕES ===================== */

@@ -36,6 +36,12 @@ Clonar `landing-pages/_template/` para `landing-pages/<slug>/`. Configurar `trac
 - pixels da conta.
 Aplicar a **marca do empreendimento** (não a do CRM).
 
+**Padrão obrigatório — página de obrigado:** toda LP tem um `obrigado.html`
+(lê marca + WhatsApp do próprio `tracking.config.js`, então é genérico). O form
+**dispara o evento `Lead`** e **redireciona** pro `obrigado.html` no submit
+(ver `landing-pages/now-residence/` como referência). Caminhos de asset da LP
+**relativos** (servida em `/<slug>/`). Nenhum projeto vai pro ar sem página de obrigado.
+
 ### 7. Tracking / n8n
 Garantir que o n8n reconhece a origem da LP e carimba a conta correta (anti-spoof).
 
