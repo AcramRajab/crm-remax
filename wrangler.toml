@@ -1,0 +1,9 @@
+# Wrangler na RAIZ do repo — permite `npx wrangler deploy` rodar da raiz
+# (Root directory "/" no Cloudflare) sem precisar mexer em mais nada.
+# Serve o build do CRM (apps/crm/dist) como assets estáticos da SPA.
+name = "crm-remax"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "./apps/crm/dist"
+not_found_handling = "single-page-application"
