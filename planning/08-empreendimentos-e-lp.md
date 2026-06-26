@@ -50,6 +50,57 @@ Trocam-se só os conteúdos. Ver a skill `skills/criar-empreendimento/`.
 - Renda familiar mínima ~R$15k; facilidade de até 100 parcelas (liberado pela construtora à REMAX).
 - Material em `projetos-empreendimento/now-residence-remax/` (catálogo web + vídeo + transcrição das personas).
 
+## Serving multi-tenant da LP (arquitetura)
+
+> **Regra de ouro:** a LP de um empreendimento **nunca** é hardcodada no Worker do CRM.
+> Servir LP é uma feature de plataforma, resolvida por **(conta, slug)** em runtime —
+> nada de `now-residence`/`REMAX` no código. Se aparece o nome de um cliente no
+> código de serving, está errado.
+
+### URL alvo (decisão do Acram)
+A LP fica **no caminho do domínio do CRM**, por conta:
+
+```
+crm.remaxsc.com.br/                -> CRM (app interno, autenticado)
+crm.remaxsc.com.br/<slug>          -> LP pública daquele empreendimento
+crm.<outra-imob>.com.br/<slug>     -> LP da OUTRA conta, mesmo código, zero hardcode
+```
+
+O **domínio resolve a conta** (white-label, Cloudflare for SaaS). O **slug resolve o
+empreendimento** dentro da conta. Os dois explícitos — igual a todo o resto do sistema.
+
+### Como o Worker decide (roteamento)
+Um **Worker com código** (não "só assets") inspeciona cada request:
+
+1. **Resolve a conta pelo `Host`** — lookup `hostname -> account_id` (config/Supabase, cacheado).
+2. **Classifica o path:**
+   - rota reservada do app (`/funil`, `/leads`, `/dashboard`, `/config`, `/integracoes`, `/empreendimentos`, `/hoje`, `/leads/:id`, e assets do build) → serve o **CRM SPA**;
+   - qualquer outro 1º segmento → trata como **`<slug>`** e tenta servir a **LP** de `(account_id, slug)`;
+   - slug inexistente para a conta → 404 público (não cai no CRM).
+3. **Busca a LP** de `(account_id, slug)` no storage (ver abaixo) e responde, injetando a
+   `tracking.config.js` correta (carimba `account_id` + `slug` daquela conta).
+
+> ⚠️ **Risco a gerenciar:** CRM e LP dividem o mesmo host, então o espaço de `<slug>`
+> e o de rotas do app **não podem colidir**. As rotas do app são uma allowlist
+> reservada; nenhum empreendimento pode usar um slug que bata com elas
+> (validar no `criar-empreendimento`).
+
+### Onde a LP de cada `(conta, slug)` mora
+- LPs **não** ficam no bundle do CRM. Ficam num **storage servível por chave**:
+  `R2: {account_id}/{slug}/index.html` (+ assets), ou equivalente.
+- Publicadas no **onboarding do empreendimento** (skill `criar-empreendimento`):
+  o template é preenchido, a `tracking.config.js` é carimbada com a conta e o slug,
+  e o conjunto sobe pro storage sob a chave da conta.
+- Trocar/atualizar a LP = republicar a chave; **não** exige deploy do Worker.
+
+### Estado atual (provisório)
+- **CRM** no ar como Worker de assets: `crm-remax` → `crm.remaxsc.com.br`.
+- **LP now-residence** no ar como **preview isolado**: Worker `lp-now-residence`
+  (`lp-now-residence.acramrajab.workers.dev`) — só para visualização, **fora** do
+  fluxo multi-tenant. Será descartado quando o serving por `(conta, slug)` existir.
+- O serving multi-tenant acima ainda **não está construído** — é a próxima feature
+  desta área. Encosta em `02-arquitetura.md` (white-label de domínio / Cloudflare for SaaS).
+
 ## Apresentação GBER
 
 Há uma apresentação prevista para a construtora (GBER). A arquitetura deste repo + o case Now Residence são a base dela. (Status a confirmar com o Acram.)

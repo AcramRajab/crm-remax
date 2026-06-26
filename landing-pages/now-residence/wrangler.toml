@@ -1,0 +1,9 @@
+# PREVIEW da LP do now-residence — Worker estático separado do CRM.
+# Provisório, só para visualização. O serving definitivo da LP é
+# multi-tenant (resolve conta por domínio + slug -> LP da conta),
+# ver planning/08-empreendimentos-e-lp.md.
+name = "lp-now-residence"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "."
