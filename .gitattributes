@@ -1,0 +1,16 @@
+# Git LFS — apenas a mídia bruta pesada dos empreendimentos.
+# Assets pequenos da LP/logo ficam no git normal (funcionam sem `lfs pull`).
+projetos-empreendimento/**/*.mp4  filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.MP4  filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.mov  filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.MOV  filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.heic filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.HEIC filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.jpg  filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.JPG  filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.JPEG filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.png  filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.PNG  filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+projetos-empreendimento/**/*.PDF  filter=lfs diff=lfs merge=lfs -text

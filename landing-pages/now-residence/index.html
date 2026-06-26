@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NOW Residence | Viva o Agora · Itajaí - SC</title>
+<meta name="description" content="NOW Residence — lofts e apartamentos compactos de alto padrão no Centro de Itajaí/SC. Tecnologia, gestão Housi e alta valorização. Viva o Agora."/>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Comfortaa:wght@500;700&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- GSAP / Lenis -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/@studio-freight/lenis@1.0.33/dist/lenis.min.js"></script>
+<!-- Tracking (carimba account_id + slug em cada evento) -->
+<script src="tracking.config.js"></script>
+<style>
+/* =======================================================================
+   NOW RESIDENCE — DESIGN SYSTEM
+   Tokens extraídos do catálogo oficial (NOW RESIDENCE - CATALOGO WEB).
+   ======================================================================= */
+:root{
+  --c-dark:#181818;        /* charcoal — fundo dominante (near-black quente) */
+  --c-darker:#0E0E0E;      /* deepest / footer */
+  --c-card:#232323;        /* superfície de card no escuro */
+  --c-light:#FFFFFF;       /* painel branco */
+  --c-cream:#F3F1ED;       /* off-white para seções suaves */
+  --c-accent:#EC008C;      /* MAGENTA NOW (assinatura) */
+  --c-accent-deep:#C2006F; /* magenta hover */
+  --c-text:#1A1A1A;        /* texto sobre claro */
+  --c-muted:#9A9A9A;       /* texto secundário sobre escuro */
+  --c-muted-dark:#6B6B6B;  /* texto secundário sobre claro */
+  --c-line:rgba(255,255,255,0.12);
+  --font-display:'Anton',sans-serif;     /* títulos pesados condensados */
+  --font-brand:'Comfortaa',sans-serif;   /* wordmark NOW (geométrico arred.) */
+  --font-body:'Manrope',sans-serif;      /* corpo */
+}
+*{box-sizing:border-box}
+body{
+  background:var(--c-dark);
+  color:var(--c-light);
+  font-family:var(--font-body);
+  margin:0; overflow-x:hidden; cursor:auto; opacity:0;
+}
+img{display:block;max-width:100%}
+
+/* --- TIPOGRAFIA --- */
+.display{font-family:var(--font-display);font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:.92}
+.brand{font-family:var(--font-brand);font-weight:700;letter-spacing:-.04em}
+.kicker{font-size:.72rem;letter-spacing:.35em;text-transform:uppercase;font-weight:600}
+.accent{color:var(--c-accent)}
+
+/* Wordmark NOW (aproxima o logo do catálogo) */
+.wordmark{display:inline-flex;flex-direction:column;line-height:1}
+.wordmark .now{font-family:var(--font-brand);font-weight:700;letter-spacing:-.06em;font-size:1.5rem}
+.wordmark .res{font-family:var(--font-body);font-weight:600;letter-spacing:.42em;font-size:.42rem;margin-top:.1em;opacity:.92}
+
+/* --- LAYOUT / WRAPPER (footer reveal igual à referência) --- */
+.wrapper{position:relative;z-index:10;background:var(--c-dark);margin-bottom:100vh;box-shadow:0 50px 100px rgba(0,0,0,.5)}
+.container{max-width:1400px;margin:0 auto;padding:0 1.5rem}
+
+/* --- TOPOGRAFIA (motivo gráfico assinatura: linhas de contorno) --- */
+.topo{position:absolute;pointer-events:none;z-index:0;opacity:.5}
+.topo svg{display:block}
+.topo path{fill:none;stroke-width:1}
+
+/* --- BOTÕES --- */
+.btn{display:inline-flex;align-items:center;gap:.6rem;font-weight:600;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;padding:1rem 1.8rem;border-radius:2px;transition:all .35s ease;cursor:pointer;border:1px solid transparent;text-decoration:none}
+.btn-magenta{background:var(--c-accent);color:#fff}
+.btn-magenta:hover{background:var(--c-accent-deep);transform:translateY(-2px)}
+.btn-outline{border-color:rgba(255,255,255,.4);color:#fff}
+.btn-outline:hover{border-color:var(--c-accent);color:var(--c-accent)}
+.btn-dark{background:var(--c-dark);color:#fff}
+.btn-dark:hover{background:var(--c-accent)}
+
+/* --- TEXT REVEAL --- */
+.word-wrap{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.12em}
+.word-inner{display:inline-block;transform:translateY(110%)}
+
+/* --- PRELOADER --- */
+.loader{position:fixed;inset:0;background:var(--c-darker);z-index:10000;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff}
+.loader .wm{font-family:var(--font-brand);font-weight:700;letter-spacing:-.06em;font-size:14vw}
+.loader-bar{position:absolute;bottom:0;left:0;height:3px;background:var(--c-accent);width:0%}
+
+/* --- HERO --- */
+.hero-overlay{background:linear-gradient(180deg,rgba(10,10,10,.55) 0%,rgba(10,10,10,.20) 30%,rgba(10,10,10,.82) 78%,rgba(10,10,10,.92) 100%)}
+.hero-pill{display:inline-block;background:rgba(14,14,14,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:.55rem .9rem;border-left:2px solid var(--c-accent)}
+section .hero-fade p,.hero h1{text-shadow:0 2px 24px rgba(0,0,0,.45)}
+
+/* --- STATS --- */
+.stat-num{font-family:var(--font-display);font-size:clamp(3rem,7vw,6rem);line-height:1;color:var(--c-accent)}
+
+/* --- CARD STACK (diferenciais — sticky scroll igual à referência) --- */
+.stack-section{padding:12vh 0;background:var(--c-dark);position:relative}
+.stack-container{width:100%;max-width:1300px;margin:0 auto;position:relative;padding-bottom:8vh}
+.card-item{position:sticky;top:10vh;height:78vh;width:100%;display:flex;align-items:center;justify-content:center;margin-bottom:5vh}
+.card-inner{width:94%;height:100%;background:var(--c-card);border:1px solid var(--c-line);position:relative;overflow:hidden;display:grid;grid-template-columns:1fr 1.15fr;box-shadow:0 25px 50px -12px rgba(0,0,0,.7)}
+.card-content{padding:clamp(2rem,4vw,4rem);display:flex;flex-direction:column;justify-content:space-between;background:var(--c-card);z-index:2}
+.card-img-wrap{position:relative;width:100%;height:100%;overflow:hidden}
+.card-img{width:100%;height:100%;object-fit:cover;transition:transform 1.5s ease}
+.card-inner:hover .card-img{transform:scale(1.08)}
+.card-num{font-family:var(--font-display);font-size:4rem;color:var(--c-accent);opacity:.85;line-height:1}
+
+/* --- AMENITIES GRID --- */
+.amenity{position:relative;overflow:hidden;background:var(--c-card)}
+.amenity img{width:100%;height:100%;object-fit:cover;aspect-ratio:4/3;transition:transform 1.1s ease}
+.amenity:hover img{transform:scale(1.07)}
+.amenity .label{position:absolute;left:0;bottom:0;padding:.5rem 1rem;background:var(--c-accent);color:#fff;font-family:var(--font-display);font-size:.95rem;letter-spacing:.04em}
+.amenity::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.45) 100%);pointer-events:none}
+
+/* --- PERSONA CARDS --- */
+.persona{border:1px solid var(--c-line);padding:2rem;background:linear-gradient(160deg,rgba(255,255,255,.02),rgba(255,255,255,0));transition:all .4s ease}
+.persona:hover{border-color:var(--c-accent);transform:translateY(-4px)}
+.persona .pn{font-family:var(--font-display);font-size:1.6rem;color:var(--c-accent);line-height:1}
+
+/* --- LOCALIZAÇÃO LIST --- */
+.poi{display:flex;justify-content:space-between;align-items:baseline;padding:.85rem 0;border-bottom:1px solid var(--c-line)}
+.poi .t{font-weight:600;letter-spacing:.02em}
+.poi .d{font-size:.8rem;color:var(--c-accent);font-weight:600;white-space:nowrap}
+
+/* --- FORM --- */
+.field{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--c-line);color:#fff;padding:1rem 1.1rem;border-radius:2px;font-family:var(--font-body);font-size:.95rem;transition:border-color .3s}
+.field::placeholder{color:#8a8a8a}
+.field:focus{outline:none;border-color:var(--c-accent)}
+.field-light{background:rgba(0,0,0,.03);border-color:rgba(0,0,0,.12);color:var(--c-text)}
+.field-light::placeholder{color:#9a9a9a}
+
+/* --- FOOTER REVEAL (fixo atrás, igual à referência) --- */
+.footer-sticky{position:fixed;bottom:0;left:0;width:100%;height:100vh;z-index:1;background:var(--c-darker);color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow:hidden}
+
+/* --- MARCA D'ÁGUA REMAX (parceria/comercialização) --- */
+.wm-remax{position:relative}
+.wm-remax::after,.card-img-wrap::after{content:"";position:absolute;right:1rem;bottom:1rem;width:108px;height:42px;
+  background:url("assets/remax-white.webp") right bottom/contain no-repeat;opacity:.72;
+  pointer-events:none;z-index:5;filter:drop-shadow(0 1px 4px rgba(0,0,0,.65))}
+.amenity::before{content:"";position:absolute;right:.45rem;bottom:.45rem;width:64px;height:24px;
+  background:url("assets/remax-white.webp") right bottom/contain no-repeat;opacity:.7;
+  pointer-events:none;z-index:5;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
+/* chip escuro pra exibir o logo branco sobre fundo claro */
+.remax-chip{display:inline-flex;align-items:center;gap:.6rem;background:var(--c-darker);
+  padding:.55rem .9rem;border-radius:4px}
+.remax-chip img{height:26px;width:auto}
+
+/* --- NOISE --- */
+.noise-overlay{position:fixed;inset:0;pointer-events:none;z-index:9000;opacity:.04;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* --- WHATSAPP FLOAT --- */
+.wa-float{position:fixed;right:1.3rem;bottom:1.3rem;z-index:8000;width:58px;height:58px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.35);transition:transform .3s}
+.wa-float:hover{transform:scale(1.08)}
+
+@media (max-width:768px){
+  .card-inner{grid-template-columns:1fr}
+  .card-item{top:6vh;height:84vh}
+  .card-img-wrap{height:46%;order:-1}
+}
+</style>
+<style>
+/* Force native scroll fallback (compatibilidade offline) */
+html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !important}
+.loader[data-done="1"]{display:none !important}
+</style>
+</head>
+<body>
+<!-- UTILS -->
+<div class="noise-overlay"></div>
+
+<!-- PRELOADER -->
+<div class="loader" id="loader">
+  <div class="wm">NOW</div>
+  <div style="font-family:var(--font-body);font-weight:600;letter-spacing:.42em;font-size:.6rem;margin-top:.4rem;opacity:.7">RESIDENCE · ITAJAÍ - SC</div>
+  <div class="loader-bar" id="loaderBar"></div>
+</div>
+
+<!-- NAV -->
+<nav class="fixed top-0 w-full px-6 md:px-10 py-5 flex justify-between items-center z-50 transition-colors duration-500" id="nav">
+  <a href="#top" class="wordmark text-white"><span class="now">NOW</span><span class="res">RESIDENCE</span></a>
+  <div class="hidden md:flex gap-8 text-[.7rem] uppercase tracking-[.2em] font-semibold items-center">
+    <a class="hover:text-[var(--c-accent)] transition-colors" href="#empreendimento">O Empreendimento</a>
+    <a class="hover:text-[var(--c-accent)] transition-colors" href="#localizacao">Localização</a>
+    <a class="hover:text-[var(--c-accent)] transition-colors" href="#lazer">Lazer</a>
+    <a class="hover:text-[var(--c-accent)] transition-colors" href="#plantas">Plantas</a>
+    <a class="btn btn-magenta !py-2.5 !px-4 !text-[.68rem]" href="#contato">Quero investir</a>
+  </div>
+  <a href="#contato" class="md:hidden btn btn-magenta !py-2 !px-3 !text-[.62rem]">Investir</a>
+</nav>
+
+<div class="wrapper" id="top">
+
+  <!-- HERO -->
+  <section class="h-screen relative flex items-end overflow-hidden wm-remax">
+    <img alt="NOW Residence — fachada" class="absolute inset-0 w-full h-full object-cover hero-img" src="assets/hero-facade.webp"/>
+    <div class="absolute inset-0 hero-overlay"></div>
+    <div class="topo" style="top:-4%;right:-2%;width:46%;color:#fff;opacity:.18" data-topo="22"></div>
+    <div class="relative z-10 container pb-[8vh] w-full">
+      <div class="hero-fade opacity-0 mb-5"><span class="kicker accent hero-pill">NOW Residence · Itajaí — SC · O futuro é agora</span></div>
+      <h1 class="display text-white text-[15vw] md:text-[12vw]">
+        <span class="block overflow-hidden hero-line"><span class="block translate-y-full">VIVA</span></span>
+        <span class="block overflow-hidden hero-line"><span class="block translate-y-full">O <span class="accent">AGORA</span>.</span></span>
+      </h1>
+      <div class="hero-fade opacity-0 mt-7 flex flex-col md:flex-row md:items-center gap-5 max-w-3xl">
+        <p class="text-lg font-light text-gray-200 leading-relaxed">Lofts e compactos de alto padrão onde tecnologia, estilo e funcionalidade trabalham em harmonia — pensado para morar ou investir com alta valorização.</p>
+      </div>
+      <div class="hero-fade opacity-0 mt-8 flex flex-wrap gap-4">
+        <a href="#contato" class="btn btn-magenta">Agende sua visita</a>
+        <a href="#empreendimento" class="btn btn-outline">Conheça o projeto</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTRO / MANIFESTO -->
+  <section id="empreendimento" class="py-28 md:py-40 bg-[var(--c-dark)] relative">
+    <div class="topo" style="top:8%;left:-3%;width:24%;color:#fff;opacity:.07" data-topo="16"></div>
+    <div class="container grid md:grid-cols-2 gap-12 md:gap-20 items-start relative z-10">
+      <div>
+        <div class="kicker accent mb-6">Invista com inteligência</div>
+        <h2 class="display text-4xl md:text-6xl leading-[.95] split-animate">
+          O futuro começa <span class="accent">hoje</span>, no centro de Itajaí.
+        </h2>
+      </div>
+      <div class="text-lg font-light leading-relaxed text-gray-300">
+        <p class="mb-7 split-animate">Mais do que um empreendimento, o NOW Residence é uma escolha estratégica de vida. Design sofisticado, tecnologia integrada e localização certa para quem busca praticidade sem abrir mão do conforto — vivendo o presente, pensando no amanhã.</p>
+        <div class="h-px w-full bg-white/10 my-8"></div>
+        <div class="grid grid-cols-3 gap-6 text-sm split-animate">
+          <div><div class="display text-3xl accent">24</div><div class="text-gray-400 mt-1 uppercase tracking-widest text-[.7rem]">Pavimentos</div></div>
+          <div><div class="display text-3xl accent">8</div><div class="text-gray-400 mt-1 uppercase tracking-widest text-[.7rem]">Unid. por andar</div></div>
+          <div><div class="display text-3xl accent">25+</div><div class="text-gray-400 mt-1 uppercase tracking-widest text-[.7rem]">Áreas comuns</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS BAND -->
+  <section class="py-20 bg-[var(--c-cream)] text-[var(--c-text)]">
+    <div class="container">
+      <div class="kicker text-[var(--c-accent)] mb-12 text-center">Itajaí — o destino inteligente para grandes investimentos</div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
+        <div><div class="stat-num" data-count="15" data-suffix="%">0%</div><p class="mt-2 text-sm text-[var(--c-muted-dark)] leading-snug">de valorização imobiliária em 2024 — 2º lugar em SC</p></div>
+        <div><div class="stat-num" data-count="20" data-prefix="14–" data-suffix="%">0%</div><p class="mt-2 text-sm text-[var(--c-muted-dark)] leading-snug">de valorização ao ano na região do empreendimento</p></div>
+        <div><div class="stat-num" data-count="2" data-suffix="º">0</div><p class="mt-2 text-sm text-[var(--c-muted-dark)] leading-snug">maior PIB de Santa Catarina e a maior renda per capita</p></div>
+        <div><div class="stat-num" data-count="450" data-suffix="k">0k</div><p class="mt-2 text-sm text-[var(--c-muted-dark)] leading-snug">habitantes projetados até 2040 (hoje 287k)</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOCALIZAÇÃO -->
+  <section id="localizacao" class="py-28 md:py-36 bg-[var(--c-dark)] relative overflow-hidden">
+    <div class="topo" style="bottom:-6%;right:-4%;width:40%;color:#fff;opacity:.06" data-topo="20"></div>
+    <div class="container grid md:grid-cols-2 gap-14 items-center relative z-10">
+      <div>
+        <div class="kicker accent mb-6">A localização certa</div>
+        <h2 class="display text-4xl md:text-6xl leading-[.95] mb-8">O local exato da <span class="accent">valorização</span>.</h2>
+        <p class="text-gray-300 font-light leading-relaxed mb-5">Na <strong class="text-white font-semibold">Rua Franklin Máximo Pereira, nº 319</strong>, esquina com a Rua Luiz Berlin — Centro de Itajaí. Posicionado em uma das áreas mais valorizadas da cidade, com fácil acesso a universidades, hospitais, comércio e aos portos.</p>
+        <p class="text-gray-400 font-light leading-relaxed text-sm">Alta demanda para compra e locação o ano todo — não apenas na temporada. Um investimento com locação certa.</p>
+      </div>
+      <div>
+        <div class="poi"><span class="t">Uniavan</span><span class="d">3–5 min</span></div>
+        <div class="poi"><span class="t">Angeloni</span><span class="d">4–5 min</span></div>
+        <div class="poi"><span class="t">Univali</span><span class="d">5–10 min</span></div>
+        <div class="poi"><span class="t">Hospital Marieta</span><span class="d">5–10 min</span></div>
+        <div class="poi"><span class="t">Centro</span><span class="d">7–11 min</span></div>
+        <div class="poi"><span class="t">Hospital Unimed</span><span class="d">10–15 min</span></div>
+        <div class="poi"><span class="t">Terminal Rodoviário</span><span class="d">10–15 min</span></div>
+        <div class="poi"><span class="t">Itajaí Shopping</span><span class="d">10–21 min</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIFERENCIAIS (card stack) -->
+  <section class="stack-section">
+    <div class="text-center mb-16 px-6">
+      <div class="kicker accent mb-4">Moderno, funcional e rentável</div>
+      <h2 class="display text-4xl md:text-6xl">Um investimento que se <span class="accent">adapta ao seu estilo</span></h2>
+    </div>
+    <div class="stack-container">
+      <!-- 01 -->
+      <div class="card-item"><div class="card-inner">
+        <div class="card-content">
+          <div><div class="card-num">01</div><h3 class="display text-3xl mt-3">Loft Plus</h3><p class="text-sm mt-3 text-[var(--c-accent)] uppercase tracking-widest">Compacto de luxo</p></div>
+          <div class="text-gray-400 font-light leading-relaxed">Investir em um compacto de luxo com alta valorização: arquitetura funcional, decoração de baixa manutenção, alta durabilidade e excelente custo-benefício. Rentabilidade acima da média de mercado.</div>
+          <a href="#contato" class="self-start btn btn-outline !py-2.5 !px-5 !text-[.7rem]">Quero detalhes</a>
+        </div>
+        <div class="card-img-wrap"><img class="card-img" src="assets/interior-1.webp" alt="Loft Plus NOW Residence"/></div>
+      </div></div>
+      <!-- 02 -->
+      <div class="card-item"><div class="card-inner">
+        <div class="card-content">
+          <div><div class="card-num">02</div><h3 class="display text-3xl mt-3">Gestão inteligente Housi</h3><p class="text-sm mt-3 text-[var(--c-accent)] uppercase tracking-widest">Pay per use</p></div>
+          <div class="text-gray-400 font-light leading-relaxed">Plugue seu NOW no sistema de gestão da Housi: a segurança de um aluguel anual ou a maior rentabilidade nas plataformas sob demanda. App de rentabilidade, home cleaning, home repair e decor — preocupe-se apenas em usufruir dos rendimentos.</div>
+          <a href="#contato" class="self-start btn btn-outline !py-2.5 !px-5 !text-[.7rem]">Quero detalhes</a>
+        </div>
+        <div class="card-img-wrap"><img class="card-img" src="assets/interior-2.webp" alt="Gestão Housi"/></div>
+      </div></div>
+      <!-- 03 -->
+      <div class="card-item"><div class="card-inner">
+        <div class="card-content">
+          <div><div class="card-num">03</div><h3 class="display text-3xl mt-3">Tecnologia & acesso digital</h3><p class="text-sm mt-3 text-[var(--c-accent)] uppercase tracking-widest">Smart living</p></div>
+          <div class="text-gray-400 font-light leading-relaxed">Fechaduras eletrônicas em todos os apartamentos e controle inteligente de iluminação, climatização, TV e som pelo tablet ou smartphone. Vagas com infraestrutura para carregador de carro elétrico e gerador de energia nas áreas comuns.</div>
+          <a href="#contato" class="self-start btn btn-outline !py-2.5 !px-5 !text-[.7rem]">Quero detalhes</a>
+        </div>
+        <div class="card-img-wrap"><img class="card-img" src="assets/coworking.webp" alt="Tecnologia integrada"/></div>
+      </div></div>
+      <!-- 04 -->
+      <div class="card-item"><div class="card-inner">
+        <div class="card-content">
+          <div><div class="card-num">04</div><h3 class="display text-3xl mt-3">Construtora centenária</h3><p class="text-sm mt-3 text-[var(--c-accent)] uppercase tracking-widest">Grupo R.Gubert</p></div>
+          <div class="text-gray-400 font-light leading-relaxed">Quase 100 anos de história, na 4ª geração e com capital próprio. Esteira sólida de produtos entregues no litoral catarinense — a segurança que o investidor procura para proteger e valorizar o patrimônio.</div>
+          <a href="#contato" class="self-start btn btn-outline !py-2.5 !px-5 !text-[.7rem]">Quero detalhes</a>
+        </div>
+        <div class="card-img-wrap"><img class="card-img" src="assets/facade-night.webp" alt="Fachada NOW Residence"/></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- LAZER (25+ áreas) -->
+  <section id="lazer" class="py-28 md:py-36 bg-[var(--c-cream)] text-[var(--c-text)] relative">
+    <div class="container relative z-10">
+      <div class="max-w-3xl mb-14">
+        <div class="kicker text-[var(--c-accent)] mb-5">Mais de 25 espaços de área comum</div>
+        <h2 class="display text-4xl md:text-6xl leading-[.95]">Espaços pensados para desfrutar, celebrar e <span class="accent">criar conexões</span>.</h2>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div class="amenity reveal-up"><img src="assets/zen.webp" alt="Piscina e área de lazer"/><span class="label">Piscina</span></div>
+        <div class="amenity reveal-up"><img src="assets/academia.webp" alt="Academia"/><span class="label">Academia</span></div>
+        <div class="amenity reveal-up"><img src="assets/crossfit.webp" alt="Crossfit"/><span class="label">Crossfit</span></div>
+        <div class="amenity reveal-up"><img src="assets/coworking.webp" alt="Coworking"/><span class="label">Coworking</span></div>
+        <div class="amenity reveal-up"><img src="assets/podcast.webp" alt="Sala de podcast"/><span class="label">Podcast</span></div>
+        <div class="amenity reveal-up"><img src="assets/salao-festas.webp" alt="Salão de festas"/><span class="label">Salão de festas</span></div>
+        <div class="amenity reveal-up"><img src="assets/sala-jogos.webp" alt="Sala de jogos"/><span class="label">Sala de jogos</span></div>
+        <div class="amenity reveal-up"><img src="assets/sauna.webp" alt="Sauna seca"/><span class="label">Sauna seca</span></div>
+        <div class="amenity reveal-up"><img src="assets/mercadinho.webp" alt="Mercadinho"/><span class="label">Mercadinho</span></div>
+        <div class="amenity reveal-up"><img src="assets/lavanderia.webp" alt="Lavanderia"/><span class="label">Lavanderia</span></div>
+        <div class="amenity reveal-up"><img src="assets/kids.webp" alt="Espaço kids"/><span class="label">Espaço kids</span></div>
+        <div class="amenity reveal-up"><img src="assets/pet.webp" alt="Espaço pet"/><span class="label">Pet place</span></div>
+      </div>
+      <p class="text-center text-[var(--c-muted-dark)] text-sm mt-10 max-w-2xl mx-auto">Áreas comuns entregues equipadas, decoradas, climatizadas e com Wi-Fi. Ainda: quadra de esporte, playground, solário, sunset lounge, área gourmet, fireplace, sauna, prainha, 3 elevadores e gerador de energia.</p>
+    </div>
+  </section>
+
+  <!-- PLANTAS -->
+  <section id="plantas" class="py-28 md:py-36 bg-[var(--c-dark)] relative overflow-hidden">
+    <div class="topo" style="top:-4%;right:-3%;width:30%;color:#fff;opacity:.07" data-topo="16"></div>
+    <div class="container grid md:grid-cols-2 gap-14 items-center relative z-10">
+      <div>
+        <div class="kicker accent mb-6">Projetos exclusivos</div>
+        <h2 class="display text-4xl md:text-6xl leading-[.95] mb-6">Unidades de <span class="accent">38m²</span> até <span class="accent">120m²</span>.</h2>
+        <p class="text-gray-300 font-light leading-relaxed mb-8">Loft Plus e apartamentos de 1 ou 2 quartos feitos para o seu estilo de vida. Você pode customizar a planta e o acabamento da sua unidade após a aquisição.</p>
+        <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+          <div class="flex justify-between border-b border-white/10 pb-2"><span class="text-gray-300">Loft Plus</span><span class="accent font-semibold">44 m²</span></div>
+          <div class="flex justify-between border-b border-white/10 pb-2"><span class="text-gray-300">1 Dormitório</span><span class="accent font-semibold">38–62 m²</span></div>
+          <div class="flex justify-between border-b border-white/10 pb-2"><span class="text-gray-300">Suíte + 1 Dorm.</span><span class="accent font-semibold">78–82 m²</span></div>
+          <div class="flex justify-between border-b border-white/10 pb-2"><span class="text-gray-300">2 Dormitórios</span><span class="accent font-semibold">até 120 m²</span></div>
+        </div>
+        <div class="flex gap-8 mt-9 text-center">
+          <div><div class="display text-3xl accent">110</div><div class="text-gray-400 text-[.7rem] uppercase tracking-widest mt-1">Vagas (até 2/unid.)</div></div>
+          <div><div class="display text-3xl accent">17</div><div class="text-gray-400 text-[.7rem] uppercase tracking-widest mt-1">Andares de apto.</div></div>
+          <div><div class="display text-3xl accent">1.460</div><div class="text-gray-400 text-[.7rem] uppercase tracking-widest mt-1">m² de lazer</div></div>
+        </div>
+        <a href="#contato" class="btn btn-magenta mt-10">Receber tabela de valores</a>
+      </div>
+      <div class="grid grid-cols-1 gap-4">
+        <div class="bg-white p-3 rounded-sm"><img src="assets/planta-tipo.webp" alt="Plantas tipo e metragens"/></div>
+        <div class="bg-white p-3 rounded-sm"><img src="assets/planta-lazer.webp" alt="Planta do pavimento de lazer"/></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERSONAS / PARA QUEM -->
+  <section class="py-28 md:py-36 bg-[var(--c-darker)] relative">
+    <div class="container relative z-10">
+      <div class="max-w-3xl mb-14">
+        <div class="kicker accent mb-5">Para quem é o NOW</div>
+        <h2 class="display text-4xl md:text-6xl leading-[.95]">Vários jeitos de viver — uma <span class="accent">valorização só</span>.</h2>
+      </div>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="persona reveal-up"><div class="pn">Investidor</div><p class="text-gray-400 font-light mt-3 leading-relaxed text-sm">Pré-lançamento para flip e renda: short stay (Airbnb/Housi) num dos mercados que mais valorizam do país.</p></div>
+        <div class="persona reveal-up"><div class="pn">Saúde &amp; Medicina</div><p class="text-gray-400 font-light mt-3 leading-relaxed text-sm">Médicos residentes e profissionais dos hospitais Marieta e Unimed que querem morar perto, sem segunda casa enorme.</p></div>
+        <div class="persona reveal-up"><div class="pn">Universitário</div><p class="text-gray-400 font-light mt-3 leading-relaxed text-sm">Univali e Uniavan a poucos minutos — cursos longos como medicina pedem moradia bem localizada.</p></div>
+        <div class="persona reveal-up"><div class="pn">Terceira idade</div><p class="text-gray-400 font-light mt-3 leading-relaxed text-sm">Compacto, prático e seguro, ao lado de supermercado, farmácias e hospitais. Menos manutenção, mais qualidade de vida.</p></div>
+        <div class="persona reveal-up"><div class="pn">Casal novo</div><p class="text-gray-400 font-light mt-3 leading-relaxed text-sm">Começando a trajetória: renda familiar a partir de ~R$15 mil e facilidade de pagamento em até 100 parcelas.</p></div>
+        <div class="persona reveal-up"><div class="pn">Comércio exterior</div><p class="text-gray-400 font-light mt-3 leading-relaxed text-sm">Profissionais dos portos de Itajaí e Navegantes e da logística que migram para SC pelos benefícios fiscais.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONSTRUTORA + HOUSI -->
+  <section class="py-24 bg-[var(--c-dark)] border-t border-white/10">
+    <div class="container grid md:grid-cols-2 gap-12 items-center">
+      <div>
+        <div class="kicker accent mb-4">Realização</div>
+        <h3 class="display text-3xl md:text-4xl mb-4">Grupo R.Gubert</h3>
+        <p class="text-gray-400 font-light leading-relaxed">Quase 100 anos de história, 4ª geração, capital próprio e gestão familiar. Solidez e esteira de entregas que dão segurança a quem investe.</p>
+      </div>
+      <div>
+        <div class="kicker accent mb-4">Powered by Housi</div>
+        <h3 class="display text-3xl md:text-4xl mb-4">Sua casa on demand</h3>
+        <p class="text-gray-400 font-light leading-relaxed">Gestão de locação ponta a ponta nas principais plataformas do mercado: colocamos seu imóvel para alugar no menor prazo e você acompanha tudo pelo app de rentabilidade.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTATO / CONVERSÃO (lead-gen-hibrido) -->
+  <section id="contato" class="py-28 md:py-36 bg-[var(--c-cream)] text-[var(--c-text)] relative overflow-hidden">
+    <div class="topo" style="bottom:-8%;left:-4%;width:34%;color:var(--c-accent);opacity:.16" data-topo="18"></div>
+    <div class="container grid md:grid-cols-2 gap-16 items-center relative z-10">
+      <div>
+        <div class="kicker text-[var(--c-accent)] mb-5">Viva o agora</div>
+        <h2 class="display text-5xl md:text-7xl leading-[.92] mb-6">Garanta a sua <span class="accent">unidade</span>.</h2>
+        <p class="text-[var(--c-muted-dark)] font-light leading-relaxed mb-8 max-w-md">Fale com um corretor REMAX e receba a tabela de valores, plantas e as condições — até 100 parcelas. Atendimento humano, do primeiro contato à entrega das chaves.</p>
+        <a id="waBtn" href="#" class="btn btn-magenta">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zM6.597 20.13c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.515 5.26l-.999 3.648 3.743-.982zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413z"/></svg>
+          Falar no WhatsApp
+        </a>
+        <div class="mt-9 flex items-center gap-3">
+          <span class="remax-chip"><img src="assets/remax-white.webp" alt="RE/MAX"/></span>
+          <span class="text-sm text-[var(--c-muted-dark)] leading-snug">Comercialização e atendimento<br/><strong class="text-[var(--c-text)]">parceria oficial RE/MAX</strong></span>
+        </div>
+      </div>
+      <form id="leadForm" class="bg-white p-7 md:p-9 rounded-sm shadow-xl border border-black/5">
+        <h3 class="display text-2xl mb-5">Receba as condições</h3>
+        <div class="grid gap-3">
+          <input class="field field-light" name="nome" placeholder="Seu nome" required/>
+          <input class="field field-light" name="email" type="email" placeholder="Seu melhor e-mail" required/>
+          <input class="field field-light" name="telefone" type="tel" placeholder="WhatsApp (DDD + número)" required/>
+          <select class="field field-light" name="interesse" required>
+            <option value="" disabled selected>Tenho interesse em…</option>
+            <option>Investir (renda / valorização)</option>
+            <option>Morar</option>
+            <option>Loft Plus</option>
+            <option>1 Dormitório</option>
+            <option>2 Dormitórios</option>
+          </select>
+          <button type="submit" class="btn btn-magenta w-full justify-center mt-1">Quero ser contatado</button>
+          <p id="formMsg" class="text-xs text-[var(--c-muted-dark)] text-center mt-1">Seus dados são tratados conforme a LGPD. Sem spam.</p>
+        </div>
+      </form>
+    </div>
+  </section>
+
+</div><!-- /wrapper -->
+
+<!-- FOOTER (reveal fixo atrás) -->
+<footer class="footer-sticky">
+  <div class="topo" style="top:-6%;left:-4%;width:34%;color:#fff;opacity:.08" data-topo="20"></div>
+  <div class="topo" style="bottom:-8%;right:-4%;width:30%;color:#fff;opacity:.06" data-topo="18"></div>
+  <div class="relative z-10 text-center px-6">
+    <div class="wordmark items-center mb-6" style="display:inline-flex"><span class="now" style="font-size:clamp(3rem,9vw,7rem)">NOW</span><span class="res" style="font-size:.8rem;letter-spacing:.5em">RESIDENCE</span></div>
+    <div class="kicker text-gray-400 mb-3">Rua Franklin Máximo Pereira, 319 · Centro · Itajaí — SC</div>
+    <a class="display text-3xl md:text-5xl hover:text-[var(--c-accent)] transition-colors block mb-8" href="#contato">VIVA O AGORA</a>
+    <div class="flex flex-col items-center gap-1 mb-7">
+      <img src="assets/remax-white.webp" alt="RE/MAX" style="height:40px;width:auto;opacity:.95"/>
+      <span class="text-[.62rem] uppercase tracking-[.35em] text-gray-400">Comercialização &amp; parceria</span>
+    </div>
+    <div class="flex flex-wrap justify-center gap-6 text-xs uppercase tracking-widest text-gray-400">
+      <a class="hover:text-white" href="https://www.nowresidence.com.br" target="_blank" rel="noopener">nowresidence.com.br</a>
+      <span class="text-gray-600">·</span>
+      <span>Realização Grupo R.Gubert</span>
+      <span class="text-gray-600">·</span>
+      <span>Powered by Housi</span>
+    </div>
+    <div class="mt-10 text-[10px] text-gray-600 max-w-xl mx-auto leading-relaxed">
+      Imagens meramente ilustrativas (Lei nº 4591/64). Incorporação 25.738 — 2º Ofício de Registro de Imóveis, Itajaí/SC. © NOW Residence.
+    </div>
+  </div>
+</footer>
+
+<!-- WHATSAPP FLOAT -->
+<a class="wa-float" id="waFloat" href="#" aria-label="WhatsApp">
+  <svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zM6.597 20.13c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.515 5.26l-.999 3.648 3.743-.982zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413z"/></svg>
+</a>
+
+<script>
+/* ===================== TOPOGRAFIA (motivo assinatura) ===================== */
+function buildTopo(lines){
+  var W=600,H=420,paths="";
+  for(var i=0;i<lines;i++){
+    var y=40+i*((H-80)/lines), amp=26+i*1.4, off=i*7;
+    var d="M -20 "+(y)+
+      " C "+(W*0.2)+" "+(y-amp)+", "+(W*0.34)+" "+(y+amp)+", "+(W*0.5)+" "+(y)+
+      " S "+(W*0.78)+" "+(y-amp-off)+", "+(W+20)+" "+(y-off*0.5)+"";
+    paths+='<path d="'+d+'"/>';
+  }
+  return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" stroke="currentColor">'+paths+'</svg>';
+}
+document.querySelectorAll('[data-topo]').forEach(function(el){
+  el.innerHTML=buildTopo(parseInt(el.getAttribute('data-topo'),10)||16);
+});
+
+/* ===================== WHATSAPP ===================== */
+(function(){
+  var cfg=(window.NOW_TRACKING||{}).whatsapp||{number:"5547000000000",message:"Olá! Tenho interesse no NOW Residence."};
+  var url="https://wa.me/"+cfg.number+"?text="+encodeURIComponent(cfg.message);
+  ["waBtn","waFloat"].forEach(function(id){
+    var a=document.getElementById(id); if(!a)return;
+    a.href=url; a.target="_blank"; a.rel="noopener";
+    a.addEventListener("click",function(){ if(window.NOW_TRACK) NOW_TRACK("Lead",{channel:"whatsapp",source:id}); });
+  });
+})();
+
+/* ===================== FORM (conversão) ===================== */
+document.getElementById("leadForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  var data=Object.fromEntries(new FormData(this).entries());
+  if(window.NOW_TRACK) NOW_TRACK("Lead",Object.assign({channel:"form"},data));
+  document.getElementById("formMsg").textContent="Recebido! Um corretor entrará em contato em breve. ✅";
+  document.getElementById("formMsg").style.color="var(--c-accent)";
+  this.reset();
+});
+
+/* ===================== ANIMAÇÕES ===================== */
+gsap.registerPlugin(ScrollTrigger);
+var lenis;
+try{
+  lenis=new Lenis({duration:1.2,easing:function(t){return Math.min(1,1.001-Math.pow(2,-10*t))},smooth:true});
+  function raf(t){lenis.raf(t);requestAnimationFrame(raf)} requestAnimationFrame(raf);
+  lenis.on('scroll',ScrollTrigger.update);
+}catch(e){}
+
+function splitWords(el){
+  var words=el.innerText.split(' '); el.innerHTML='';
+  words.forEach(function(w){
+    var s=document.createElement('span'); s.className='word-wrap';
+    s.innerHTML='<span class="word-inner">'+w+'&nbsp;</span>'; el.appendChild(s);
+  });
+}
+document.querySelectorAll('.split-animate').forEach(splitWords);
+
+/* Loader */
+var loadTl=gsap.timeline({onComplete:function(){
+  document.body.style.opacity=1;
+  var l=document.getElementById('loader'); if(l) l.setAttribute('data-done','1');
+  initSite();
+}});
+loadTl.to('#loaderBar',{width:'100%',duration:1.2,ease:'power2.inOut'})
+      .to('#loader .wm',{y:-40,opacity:0,duration:.4},'-=.1')
+      .to('#loader',{yPercent:-100,duration:.8,ease:'power4.inOut'});
+
+function initSite(){
+  // Hero
+  gsap.to('.hero-line span',{y:0,stagger:.12,duration:1.4,ease:'power4.out'});
+  gsap.to('.hero-fade',{opacity:1,y:0,duration:1,stagger:.12,delay:.5});
+  gsap.to('.hero-img',{yPercent:18,ease:'none',scrollTrigger:{trigger:'.hero-img',start:'top top',end:'bottom top',scrub:true}});
+
+  // Split reveal on scroll
+  document.querySelectorAll('.split-animate').forEach(function(el){
+    gsap.to(el.querySelectorAll('.word-inner'),{y:'0%',duration:.9,ease:'power3.out',stagger:.02,
+      scrollTrigger:{trigger:el,start:'top 88%',toggleActions:'play none none reverse'}});
+  });
+
+  // Reveal-up (amenities / personas)
+  gsap.utils.toArray('.reveal-up').forEach(function(el,i){
+    gsap.from(el,{y:40,opacity:0,duration:.7,ease:'power2.out',
+      scrollTrigger:{trigger:el,start:'top 92%',toggleActions:'play none none reverse'}});
+  });
+
+  // Card stack
+  gsap.utils.toArray('.card-item').forEach(function(card,i,arr){
+    var next=arr[i+1]; if(!next)return;
+    gsap.to(card.querySelector('.card-inner'),{scale:.9,opacity:.35,ease:'none',
+      scrollTrigger:{trigger:next,start:'top bottom',end:'top 10vh',scrub:true}});
+  });
+
+  // Stat counters
+  gsap.utils.toArray('[data-count]').forEach(function(el){
+    var end=parseFloat(el.getAttribute('data-count'));
+    var pre=el.getAttribute('data-prefix')||'', suf=el.getAttribute('data-suffix')||'';
+    var obj={v:0};
+    ScrollTrigger.create({trigger:el,start:'top 88%',once:true,onEnter:function(){
+      gsap.to(obj,{v:end,duration:1.6,ease:'power2.out',onUpdate:function(){
+        el.textContent=pre+Math.round(obj.v)+suf;
+      }});
+    }});
+  });
+
+  // Nav background on scroll
+  ScrollTrigger.create({start:'top -80',onUpdate:function(self){
+    var nav=document.getElementById('nav');
+    if(self.scroll()>80){nav.style.background='rgba(14,14,14,.85)';nav.style.backdropFilter='blur(8px)';}
+    else{nav.style.background='transparent';nav.style.backdropFilter='none';}
+  }});
+
+  // Footer parallax
+  gsap.from('.footer-sticky > .relative',{y:80,opacity:.4,scale:.95,
+    scrollTrigger:{trigger:'.footer-sticky',start:'top bottom',end:'bottom bottom',scrub:true}});
+
+  ScrollTrigger.refresh();
+}
+// Fallback se algo travar o loader
+setTimeout(function(){ if(parseFloat(getComputedStyle(document.body).opacity)<1){document.body.style.opacity=1;var l=document.getElementById('loader');if(l)l.setAttribute('data-done','1');initSite();} },2500);
+
+/* Smooth anchor scroll via Lenis */
+document.querySelectorAll('a[href^="#"]').forEach(function(a){
+  a.addEventListener('click',function(e){
+    var id=this.getAttribute('href'); if(id.length<2)return;
+    var t=document.querySelector(id); if(!t)return;
+    e.preventDefault();
+    if(lenis) lenis.scrollTo(t,{offset:-10}); else t.scrollIntoView({behavior:'smooth'});
+  });
+});
+</script>
+</body></html>
