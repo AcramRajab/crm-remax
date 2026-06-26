@@ -1,12 +1,17 @@
-# Worker único que serve o CRM E as Landing Pages.
+# Worker único que serve o CRM, as Landing Pages E a API de ingestão.
 #   _site/            -> CRM (SPA na raiz)
 #   _site/<slug>/     -> LP de cada empreendimento, no caminho do slug
+#   /api/lead         -> ingestão server-side de leads (worker/index.js)
 # O Cloudflare serve arquivo exato antes do fallback SPA: /now-residence/
 # entrega a LP; /funil (sem arquivo) cai no index.html do CRM.
 # Monte _site com ./build-site.sh antes do deploy.
 name = "crm-remax"
+main = "worker/index.js"
 compatibility_date = "2025-01-01"
 
 [assets]
 directory = "./_site"
+binding = "ASSETS"
 not_found_handling = "single-page-application"
+# Só /api/* passa pelo script; todo o resto serve assets direto.
+run_worker_first = ["/api/*"]
