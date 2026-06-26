@@ -3,6 +3,7 @@
 // persistir as escritas no Supabase é a Fase 2.
 import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
 import { supabase } from "./supabase";
+import { useAuth } from "./auth";
 import { account } from "./tenant";
 import type { Lead, LeadStatus, Task } from "./types";
 
@@ -72,6 +73,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const { session } = useAuth();
 
   const reload = useCallback(async () => {
     const { data, error } = await supabase
@@ -82,11 +84,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
+  // Reage à SESSÃO (do auth) — NÃO chama o Supabase dentro do onAuthStateChange
+  // (isso trava: o callback segura o lock do auth e a query nunca volta).
   useEffect(() => {
-    reload();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => reload());
-    return () => sub.subscription.unsubscribe();
-  }, [reload]);
+    if (session) { setLoading(true); reload(); }
+    else { setLeads([]); setLoading(false); }
+  }, [session, reload]);
 
   const getLead = useCallback((id: string) => leads.find((l) => l.id === id), [leads]);
 
