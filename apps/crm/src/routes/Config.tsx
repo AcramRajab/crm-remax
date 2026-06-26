@@ -1,12 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Palette, Shuffle, Users as UsersIcon, KeyRound,
-  Check, Info, Plus, Shield,
+  Check, Info, Plus, Shield, X, Loader2, Copy,
 } from "lucide-react";
-import { account, applyBrand } from "../lib/tenant";
-import { users } from "../lib/mock";
-import { roleLabel } from "../lib/session";
+import { account } from "../lib/tenant";
+import { supabase } from "../lib/supabase";
 import { Avatar } from "../components/Avatar";
+
+// Papéis reais (enum app_role no banco).
+const ROLE_LABEL: Record<string, string> = {
+  super_admin: "Super admin",
+  account_admin: "Admin da conta",
+  broker: "Corretor",
+};
+
+interface Member {
+  id: string;
+  user_id: string;
+  name: string | null;
+  email: string | null;
+  role: string;
+}
 
 type Tab = "marca" | "distribuicao" | "equipe" | "credenciais";
 
@@ -132,26 +146,147 @@ function Distribuicao() {
 
 /* ---------------- Equipe & papéis ---------------- */
 function Equipe() {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [invite, setInvite] = useState(false);
+
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from("core_usuarios")
+      .select("id, user_id, name, email, role")
+      .order("created_at", { ascending: true });
+    setMembers((data as Member[]) || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
   return (
-    <Section title="Equipe & papéis" desc="Papéis reforçados por RLS no banco. Corretor vê só os próprios leads (default); admin vê toda a conta.">
-      <div className="space-y-2">
-        {users.map((u) => (
-          <div key={u.id} className="flex items-center justify-between p-3 rounded-lg border border-line">
-            <div className="flex items-center gap-2.5">
-              <Avatar name={u.name} color={u.avatar_color} size={34} />
-              <div>
-                <div className="text-sm font-semibold text-ink">{u.name}</div>
-                <div className="text-xs text-ink-faint">{u.id}@remax-itajai</div>
+    <Section title="Equipe & papéis" desc="Membros desta conta (isolados por RLS). Corretor vê só os próprios leads; admin vê toda a conta. Cada imobiliária tem a sua equipe.">
+      {loading ? (
+        <p className="text-sm text-ink-faint">Carregando equipe…</p>
+      ) : (
+        <div className="space-y-2">
+          {members.map((m) => {
+            const display = m.name || m.email?.split("@")[0] || "—";
+            const isAdminRole = m.role === "account_admin" || m.role === "super_admin";
+            return (
+              <div key={m.id} className="flex items-center justify-between p-3 rounded-lg border border-line">
+                <div className="flex items-center gap-2.5">
+                  <Avatar name={display} size={34} />
+                  <div>
+                    <div className="text-sm font-semibold text-ink">{display}</div>
+                    <div className="text-xs text-ink-faint">{m.email || "—"}</div>
+                  </div>
+                </div>
+                <span className={`chip ${isAdminRole ? "bg-violet-100 text-violet-700" : "bg-sky-100 text-sky-700"}`}>
+                  <Shield size={12} /> {ROLE_LABEL[m.role] || m.role}
+                </span>
               </div>
-            </div>
-            <span className={`chip ${u.role === "broker" ? "bg-sky-100 text-sky-700" : "bg-violet-100 text-violet-700"}`}>
-              <Shield size={12} /> {roleLabel[u.role]}
-            </span>
-          </div>
-        ))}
-      </div>
-      <button className="btn-outline mt-4"><Plus size={15} /> Convidar membro</button>
+            );
+          })}
+          {members.length === 0 && (
+            <p className="text-sm text-ink-faint">Nenhum membro ainda. Convide o primeiro abaixo.</p>
+          )}
+        </div>
+      )}
+      <button className="btn-outline mt-4" onClick={() => setInvite(true)}><Plus size={15} /> Convidar membro</button>
+
+      {invite && <InviteModal onClose={() => setInvite(false)} onDone={load} />}
     </Section>
+  );
+}
+
+function InviteModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("broker");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState<{ email: string; temp_password: string } | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(""); setBusy(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { setErr("Sessão expirada — entre de novo."); setBusy(false); return; }
+
+      const r = await fetch("/api/team/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({ email, name, role }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const map: Record<string, string> = {
+          forbidden: "Só o admin da conta pode convidar membros.",
+          ja_existe: j.detail || "Esse e-mail já tem cadastro.",
+          email_invalido: "E-mail inválido.",
+        };
+        setErr(map[j.error] || j.detail || "Não consegui convidar. Tente de novo.");
+        setBusy(false);
+        return;
+      }
+      setDone({ email: j.email, temp_password: j.temp_password });
+      onDone();
+    } catch {
+      setErr("Falha de rede. Tente de novo.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4" onClick={onClose}>
+      <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h3 className="font-semibold text-ink flex items-center gap-2"><Plus size={18} className="text-brand" /> Convidar membro</h3>
+          <button onClick={onClose} className="text-ink-faint hover:text-ink"><X size={18} /></button>
+        </div>
+
+        {done ? (
+          <div className="p-5 space-y-3">
+            <div className="flex items-start gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+              <Check size={16} className="shrink-0 mt-0.5" />
+              <span><strong>{done.email}</strong> foi adicionado à equipe. Passe a senha provisória abaixo — ele troca depois de entrar.</span>
+            </div>
+            <Field label="Senha provisória">
+              <div className="flex items-center gap-2">
+                <input className="input font-mono" readOnly value={done.temp_password} />
+                <button type="button" className="btn-outline !px-3" title="Copiar"
+                  onClick={() => navigator.clipboard?.writeText(done.temp_password)}>
+                  <Copy size={15} />
+                </button>
+              </div>
+            </Field>
+            <button className="btn-brand w-full" onClick={onClose}>Concluir</button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="p-5 space-y-3">
+            <Field label="E-mail do membro">
+              <input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="corretor@imobiliaria.com.br" />
+            </Field>
+            <Field label="Nome">
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do corretor" />
+            </Field>
+            <Field label="Papel">
+              <select className="input" value={role} onChange={(e) => setRole(e.target.value)}>
+                <option value="broker">Corretor — vê só os próprios leads</option>
+                <option value="account_admin">Admin da conta — vê toda a conta</option>
+              </select>
+            </Field>
+            {err && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
+            <div className="flex gap-2 pt-1">
+              <button type="button" className="btn-outline flex-1" onClick={onClose}>Cancelar</button>
+              <button type="submit" disabled={busy} className="btn-brand flex-1 disabled:opacity-60">
+                {busy ? <><Loader2 size={16} className="animate-spin" /> Convidando…</> : <><Plus size={16} /> Convidar</>}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
   );
 }
 

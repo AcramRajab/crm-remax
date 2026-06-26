@@ -19,6 +19,17 @@ export default {
       }
     }
 
+    // Convidar membro da equipe (só admin da conta). Cria o usuário NA CONTA DO
+    // ADMIN — account_id vem do token verificado, nunca do browser.
+    if (url.pathname === "/api/team/invite") {
+      if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+      try {
+        return await handleInvite(request, env);
+      } catch (err) {
+        return json({ error: "server_error", detail: String(err && err.message || err) }, 500);
+      }
+    }
+
     // Demais caminhos: assets (run_worker_first manda só /api/* pra cá).
     return env.ASSETS.fetch(request);
   }
@@ -72,6 +83,82 @@ async function handleLead(request, env, url) {
   }});
 
   return json({ ok: true });
+}
+
+async function handleInvite(request, env) {
+  if (!env.SUPABASE_SERVICE_ROLE) return json({ error: "missing_service_role" }, 500);
+
+  // 1) Valida quem está chamando (admin logado) pelo token do browser.
+  const authz = request.headers.get("Authorization") || "";
+  const token = authz.startsWith("Bearer ") ? authz.slice(7) : "";
+  if (!token) return json({ error: "no_token" }, 401);
+
+  const caller = await validateCaller(env, token);
+  if (!caller) return json({ error: "invalid_token" }, 401);
+  const isAdmin = caller.user_role === "account_admin" || caller.is_super_admin;
+  if (!isAdmin || !caller.account_id) return json({ error: "forbidden" }, 403);
+
+  // 2) Dados do convite.
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "bad_json" }, 400); }
+  const email = String(body.email || "").trim().toLowerCase();
+  const name = String(body.name || "").trim() || null;
+  let role = String(body.role || "broker").trim();
+  if (role !== "broker" && role !== "account_admin") role = "broker";
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "email_invalido" }, 400);
+
+  // 3) Cria o usuário NA CONTA DO ADMIN (account_id do token, não do body).
+  //    O trigger handle_new_user lê o metadata e cria a associação core_usuarios.
+  const tempPassword = "Acesso-" + crypto.randomUUID().slice(0, 8);
+  const res = await fetch(SUPABASE_URL + "/auth/v1/admin/users", {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE,
+      Authorization: "Bearer " + env.SUPABASE_SERVICE_ROLE,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { account_id: caller.account_id, role, name },
+    }),
+  });
+
+  if (!res.ok) {
+    const txt = (await res.text()).slice(0, 300);
+    if (res.status === 422 || res.status === 409 || /already|exists|registered/i.test(txt)) {
+      return json({ error: "ja_existe", detail: "Esse e-mail já tem cadastro na plataforma." }, 409);
+    }
+    return json({ error: "criar_usuario_falhou", detail: txt }, 500);
+  }
+
+  return json({ ok: true, email, role, temp_password: tempPassword });
+}
+
+// Valida o access token do admin no Supabase (assinatura + expiração) e lê os
+// claims custom (account_id / user_role / is_super_admin) do payload do JWT.
+async function validateCaller(env, token) {
+  const r = await fetch(SUPABASE_URL + "/auth/v1/user", {
+    headers: { apikey: env.SUPABASE_SERVICE_ROLE, Authorization: "Bearer " + token },
+  });
+  if (!r.ok) return null; // token inválido/expirado -> Supabase recusa
+  const claims = decodeJwt(token);
+  if (!claims) return null;
+  return {
+    account_id: claims.account_id || null,
+    user_role: claims.user_role || null,
+    is_super_admin: !!claims.is_super_admin,
+  };
+}
+
+function decodeJwt(token) {
+  try {
+    const part = token.split(".")[1];
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
+    return JSON.parse(atob(b64 + pad));
+  } catch { return null; }
 }
 
 // Cliente REST do Supabase com service_role (server-side; bypassa RLS).
