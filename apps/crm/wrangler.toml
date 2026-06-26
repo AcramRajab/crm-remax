@@ -1,0 +1,9 @@
+# Cloudflare Worker — serve o CRM (Vite SPA) como assets estáticos.
+# Sem código de servidor: o Worker só entrega o build do dist/.
+name = "crm-remax"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "./dist"
+# Rotas client-side (React Router): qualquer 404 cai no index.html.
+not_found_handling = "single-page-application"
