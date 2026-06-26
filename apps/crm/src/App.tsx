@@ -12,7 +12,8 @@ import Integracoes from "./routes/Integracoes";
 import Hoje from "./routes/Hoje";
 
 export default function App() {
-  const { authed } = useAuth();
+  const { authed, loading } = useAuth();
+  if (loading) return <div className="min-h-screen grid place-items-center text-ink-faint text-sm">Carregando…</div>;
   if (!authed) return <Login />;
 
   return (

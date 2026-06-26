@@ -27,6 +27,18 @@ const weightStyle: Record<string, string> = {
 export default function TrackingPanel({ leadId }: { leadId: string }) {
   const t = getTracking(leadId);
 
+  if (!t) {
+    return (
+      <section className="card p-5 text-sm text-ink-soft">
+        <h2 className="flex items-center gap-2 font-semibold text-ink mb-2">
+          <span className="grid place-items-center w-7 h-7 rounded-lg bg-surface-sunken text-ink-soft"><Activity size={15} /></span>
+          Comportamento &amp; jornada de navegação
+        </h2>
+        Sem dados de navegação ainda. <span className="text-ink-faint">(a jornada aparece conforme o lead navega na LP, via tracking-kit)</span>
+      </section>
+    );
+  }
+
   return (
     <section className="card p-5">
       <div className="flex items-center justify-between mb-4">

@@ -1,8 +1,8 @@
-// Store em memória (sessão). Faz tudo PERSISTIR ao navegar entre telas.
-// Quando o Supabase entrar, este provider passa a ler/gravar via API — as telas
-// continuam usando os mesmos hooks (useStore).
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
-import { leads as seedLeads, tasks as seedTasks } from "./mock";
+// Store do CRM. Lê os leads REAIS do Supabase (crm_leads, isolados por RLS).
+// As mutações (mover etapa, reatribuir, etc.) são otimistas/locais nesta fase;
+// persistir as escritas no Supabase é a Fase 2.
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
+import { supabase } from "./supabase";
 import { account } from "./tenant";
 import type { Lead, LeadStatus, Task } from "./types";
 
@@ -12,6 +12,8 @@ export interface TaskRow extends Task {
 
 interface Store {
   leads: Lead[];
+  loading: boolean;
+  reload: () => void;
   getLead: (id: string) => Lead | undefined;
   addLead: (input: NewLeadInput) => Lead;
   updateLead: (id: string, patch: Partial<Lead>) => void;
@@ -40,13 +42,51 @@ const Ctx = createContext<Store>(null!);
 let counter = 100;
 const uid = (p: string) => `${p}_${++counter}`;
 
-const seedTaskRows: TaskRow[] = Object.entries(seedTasks).flatMap(([leadId, ts]) =>
-  ts.map((t) => ({ ...t, lead_id: leadId }))
-);
+// crm_leads (banco) -> Lead (app). Defaults seguros pra não quebrar a UI.
+function mapLead(r: any): Lead {
+  return {
+    id: r.id,
+    account_id: r.account_id,
+    empreendimento_id: r.empreendimento_id || "",
+    first_name: r.first_name || "",
+    last_name: r.last_name || "",
+    email: r.email || "",
+    phone: r.phone || "",
+    persona: r.persona || "—",
+    score: r.score ?? 0,
+    stage_id: r.stage_id || "s_novo",   // cai na 1ª coluna do funil
+    owner_id: r.owner_id || "",
+    status: (r.status as LeadStatus) || "active",
+    origin: (r.origin as Lead["origin"]) || "inbound",
+    ft_source: r.ft_source || "Formulário",
+    lt_source: r.lt_source || "Formulário (LP)",
+    followup_count: r.followup_count ?? 0,
+    created_at: r.created_at,
+    last_activity: r.updated_at || r.created_at,
+    journey: [],
+    tags: [],
+  };
+}
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [leads, setLeads] = useState<Lead[]>(seedLeads);
-  const [tasks, setTasks] = useState<TaskRow[]>(seedTaskRows);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const reload = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("crm_leads")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!error && data) setLeads(data.map(mapLead));
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    reload();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => reload());
+    return () => sub.subscription.unsubscribe();
+  }, [reload]);
 
   const getLead = useCallback((id: string) => leads.find((l) => l.id === id), [leads]);
 
@@ -98,7 +138,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ leads, getLead, addLead, updateLead, moveStage, reassign, setStatus, tasks, toggleTask, addTask }}>
+    <Ctx.Provider value={{ leads, loading, reload, getLead, addLead, updateLead, moveStage, reassign, setStatus, tasks, toggleTask, addTask }}>
       {children}
     </Ctx.Provider>
   );
