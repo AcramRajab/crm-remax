@@ -401,8 +401,11 @@ function synthTracking(leadId: string): TrackingProfile {
   };
 }
 
-export const getTracking = (leadId: string): TrackingProfile =>
-  trackingProfiles[leadId] || synthTracking(leadId);
+// Só sintetiza perfil pra lead que existe no mock (demo). Pra lead REAL do banco,
+// ainda não há perfil de navegação -> retorna undefined e o TrackingPanel mostra
+// o estado vazio em vez de quebrar (synthTracking faria getLead()! -> crash).
+export const getTracking = (leadId: string): TrackingProfile | undefined =>
+  trackingProfiles[leadId] || (getLead(leadId) ? synthTracking(leadId) : undefined);
 
 // ---- getters ----
 export const getLead = (id: string) => leads.find((l) => l.id === id);

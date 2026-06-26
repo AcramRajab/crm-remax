@@ -1,5 +1,6 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import AppShell from "./components/AppShell";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Login from "./components/Login";
 import { useAuth } from "./lib/auth";
 import Funil from "./routes/Funil";
@@ -13,11 +14,13 @@ import Hoje from "./routes/Hoje";
 
 export default function App() {
   const { authed, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="min-h-screen grid place-items-center text-ink-faint text-sm">Carregando…</div>;
   if (!authed) return <Login />;
 
   return (
     <AppShell>
+      <ErrorBoundary resetKey={location.pathname}>
       <Routes>
         <Route path="/" element={<Navigate to="/funil" replace />} />
         <Route path="/funil" element={<Funil />} />
@@ -30,6 +33,7 @@ export default function App() {
         <Route path="/config" element={<Config />} />
         <Route path="*" element={<Navigate to="/funil" replace />} />
       </Routes>
+      </ErrorBoundary>
     </AppShell>
   );
 }
