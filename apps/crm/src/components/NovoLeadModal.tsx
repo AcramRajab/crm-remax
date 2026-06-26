@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, UserPlus } from "lucide-react";
 import { useStore } from "../lib/store";
-import { empreendimentos, users } from "../lib/mock";
+import { users } from "../lib/mock";
 
 const PERSONAS = [
   "Investidor pré-lançamento", "Saúde & Medicina", "Universitário",
@@ -11,12 +11,12 @@ const PERSONAS = [
 const SOURCES = ["Indicação", "Meta Ads", "Google Ads", "Instagram", "WhatsApp", "Outbound", "Site / LP"];
 
 export default function NovoLeadModal({ onClose }: { onClose: () => void }) {
-  const { addLead } = useStore();
+  const { addLead, emps } = useStore();
   const nav = useNavigate();
   const brokers = users.filter((u) => u.role === "broker");
   const [f, setF] = useState({
     first_name: "", last_name: "", email: "", phone: "",
-    persona: PERSONAS[0], empreendimento_id: empreendimentos[0].id,
+    persona: PERSONAS[0], empreendimento_id: emps[0]?.id ?? "",
     owner_id: brokers[0].id, lt_source: SOURCES[0],
   });
   const set = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
@@ -50,7 +50,7 @@ export default function NovoLeadModal({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <F label="Empreendimento">
               <select className="input" value={f.empreendimento_id} onChange={(e) => set("empreendimento_id", e.target.value)}>
-                {empreendimentos.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                {emps.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </F>
             <F label="Persona estimada">

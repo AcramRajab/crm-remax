@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   KanbanSquare, Users, BarChart3, Building2, Settings, CalendarCheck,
@@ -6,7 +6,8 @@ import {
   MessageCircle, UserPlus, CheckSquare,
 } from "lucide-react";
 import { account } from "../lib/tenant";
-import { empreendimentos, users } from "../lib/mock";
+import { users } from "../lib/mock";
+import { useStore } from "../lib/store";
 import { useSession, roleLabel } from "../lib/session";
 import { useAuth } from "../lib/auth";
 import { Avatar } from "./Avatar";
@@ -27,8 +28,11 @@ const notifications = [
 ];
 
 export default function AppShell({ children }: { children: ReactNode }) {
-  const [empId, setEmpId] = useState(empreendimentos[0].id);
-  const emp = empreendimentos.find((e) => e.id === empId)!;
+  const { emps } = useStore();
+  const [empId, setEmpId] = useState<string>("");
+  useEffect(() => { if (!empId && emps.length) setEmpId(emps[0].id); }, [emps, empId]);
+  const emp = emps.find((e) => e.id === empId);
+  const unitsLabel = emp?.details?.units_label as string | undefined;
   const { user, setUserId } = useSession();
   const { logout } = useAuth();
   const nav2 = useNavigate();
@@ -97,13 +101,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <button className="lg:hidden text-ink-soft" onClick={() => setDrawer(true)}><Menu size={20} /></button>
 
           <div className="relative">
-            <select value={empId} onChange={(e) => setEmpId(e.target.value)}
-              className="appearance-none bg-surface-muted border border-line rounded-lg pl-3 pr-9 py-2 text-sm font-semibold text-ink cursor-pointer focus:outline-none focus:border-brand">
-              {empreendimentos.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+            <select value={empId} onChange={(e) => setEmpId(e.target.value)} disabled={!emps.length}
+              className="appearance-none bg-surface-muted border border-line rounded-lg pl-3 pr-9 py-2 text-sm font-semibold text-ink cursor-pointer focus:outline-none focus:border-brand disabled:opacity-60">
+              {emps.length ? (
+                emps.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)
+              ) : (
+                <option value="">Nenhum empreendimento</option>
+              )}
             </select>
             <ChevronDown size={16} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
           </div>
-          <span className="text-xs text-ink-faint hidden xl:block">{emp.units_label}</span>
+          {unitsLabel && <span className="text-xs text-ink-faint hidden xl:block">{unitsLabel}</span>}
 
           <form onSubmit={search} className="relative hidden sm:block ml-auto">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />

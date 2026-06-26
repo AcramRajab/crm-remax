@@ -11,11 +11,26 @@ export interface TaskRow extends Task {
   lead_id: string;
 }
 
+// Empreendimento REAL (core_empreendimentos, isolado por RLS). Fonte única —
+// nada de mock/demo (era de onde vinha o "Quadramar" fantasma).
+export interface Emp {
+  id: string;
+  slug: string;
+  name: string;
+  status: string;
+  construtora: string | null;
+  landing_page_url: string | null;
+  personas: string[];
+  details: Record<string, any>;
+}
+
 interface Store {
   leads: Lead[];
   loading: boolean;
   reload: () => void;
   getLead: (id: string) => Lead | undefined;
+  emps: Emp[];
+  getEmp: (id: string) => Emp | undefined;
   addLead: (input: NewLeadInput) => Lead;
   updateLead: (id: string, patch: Partial<Lead>) => void;
   moveStage: (id: string, stageId: string) => void;
@@ -71,16 +86,22 @@ function mapLead(r: any): Lead {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [emps, setEmps] = useState<Emp[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
 
   const reload = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("crm_leads")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (!error && data) setLeads(data.map(mapLead));
+    // Leads + empreendimentos REAIS, ambos isolados por RLS na conta logada.
+    const [leadsRes, empsRes] = await Promise.all([
+      supabase.from("crm_leads").select("*").order("created_at", { ascending: false }),
+      supabase
+        .from("core_empreendimentos")
+        .select("id, slug, name, status, construtora, landing_page_url, personas, details")
+        .order("created_at", { ascending: true }),
+    ]);
+    if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data.map(mapLead));
+    if (!empsRes.error && empsRes.data) setEmps(empsRes.data as Emp[]);
     setLoading(false);
   }, []);
 
@@ -88,10 +109,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // (isso trava: o callback segura o lock do auth e a query nunca volta).
   useEffect(() => {
     if (session) { setLoading(true); reload(); }
-    else { setLeads([]); setLoading(false); }
+    else { setLeads([]); setEmps([]); setLoading(false); }
   }, [session, reload]);
 
   const getLead = useCallback((id: string) => leads.find((l) => l.id === id), [leads]);
+  const getEmp = useCallback((id: string) => emps.find((e) => e.id === id), [emps]);
 
   const addLead = useCallback((input: NewLeadInput): Lead => {
     const nowIso = new Date().toISOString();
@@ -141,7 +163,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ leads, loading, reload, getLead, addLead, updateLead, moveStage, reassign, setStatus, tasks, toggleTask, addTask }}>
+    <Ctx.Provider value={{ leads, loading, reload, getLead, emps, getEmp, addLead, updateLead, moveStage, reassign, setStatus, tasks, toggleTask, addTask }}>
       {children}
     </Ctx.Provider>
   );

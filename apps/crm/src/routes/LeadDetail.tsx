@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import TrackingPanel from "../components/TrackingPanel";
 import {
-  getUser, getEmp, stages, users,
+  getUser, stages, users,
   dossies, messages as msgMap, notes as noteMap, activities as actMap,
 } from "../lib/mock";
 import { useStore } from "../lib/store";
@@ -17,7 +17,7 @@ import type { Message } from "../lib/types";
 
 export default function LeadDetail() {
   const { id = "" } = useParams();
-  const { getLead, reassign, moveStage, setStatus, updateLead, tasks: allTasks, toggleTask, addTask } = useStore();
+  const { getLead, getEmp, reassign, moveStage, setStatus, updateLead, tasks: allTasks, toggleTask, addTask } = useStore();
   const lead = getLead(id);
 
   const [channel, setChannel] = useState<"whatsapp" | "email">("whatsapp");
