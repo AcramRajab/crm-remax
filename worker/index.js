@@ -6,8 +6,14 @@
 
 const SUPABASE_URL = "https://plbzwswqkeozvyirzqma.supabase.co";
 
+// Normaliza um secret que foi cadastrado com espaço no nome (" RESEND_API_KEY").
+function fixEnv(env) {
+  if (!env.RESEND_API_KEY && env[" RESEND_API_KEY"]) env.RESEND_API_KEY = env[" RESEND_API_KEY"];
+}
+
 export default {
   async fetch(request, env) {
+    fixEnv(env);
     const url = new URL(request.url);
 
     if (url.pathname === "/api/lead") {
@@ -58,6 +64,7 @@ export default {
 
   // Cron (ver wrangler.toml [triggers]): processa sequências + automações.
   async scheduled(event, env, ctx) {
+    fixEnv(env);
     ctx.waitUntil(Promise.all([processSequences(env), processAutomacoes(env)]));
   }
 };
