@@ -62,6 +62,7 @@ const uid = (p: string) => `${p}_${++counter}`;
 function mapLead(r: any): Lead {
   // journey vem do Worker como OBJETO {channel, corretor_ref, indicador, ...}.
   const j = r.journey && typeof r.journey === "object" && !Array.isArray(r.journey) ? r.journey : {};
+  const chLabel = j.channel === "whatsapp" ? "WhatsApp" : j.channel === "form" ? "Formulário (LP)" : null;
   return {
     id: r.id,
     account_id: r.account_id,
@@ -76,8 +77,8 @@ function mapLead(r: any): Lead {
     owner_id: r.owner_id || "",
     status: (r.status as LeadStatus) || "active",
     origin: (r.origin as Lead["origin"]) || "inbound",
-    ft_source: r.ft_source || "Formulário",
-    lt_source: r.lt_source || "Formulário (LP)",
+    ft_source: r.ft_source || chLabel || "Formulário",
+    lt_source: r.lt_source || chLabel || "Formulário (LP)",
     followup_count: r.followup_count ?? 0,
     created_at: r.created_at,
     last_activity: r.updated_at || r.created_at,

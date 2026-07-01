@@ -78,10 +78,15 @@ export default function LeadDetail() {
                 {lead.first_name} {lead.last_name}
                 <button onClick={() => setShowEdit(true)} className="text-ink-faint hover:text-brand"><Pencil size={14} /></button>
               </h1>
-              <div className="flex items-center gap-3 text-sm text-ink-soft mt-0.5">
+              <div className="flex items-center gap-2 flex-wrap text-sm text-ink-soft mt-0.5">
                 <span className="text-brand font-medium">{lead.persona}</span>
                 <span className="text-line">·</span>
                 <span>{emp?.name}</span>
+                {lead.channel && (
+                  <span className={`chip ${lead.channel === "whatsapp" ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700"}`}>
+                    {lead.channel === "whatsapp" ? <><MessageCircle size={11} /> via WhatsApp</> : <><MapPin size={11} /> via Formulário</>}
+                  </span>
+                )}
               </div>
             </div>
           </div>
