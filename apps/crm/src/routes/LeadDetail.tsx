@@ -130,6 +130,10 @@ export default function LeadDetail() {
   async function enviarEmail() {
     if (!lead?.email) { alert("Este lead não tem e-mail cadastrado."); return; }
     if (!emailSubj.trim()) return;
+    if (/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname)) {
+      alert("O envio de e-mail só funciona no site publicado (crm.remaxsc.com.br). O preview local não tem a API.");
+      return;
+    }
     setSendingEmail(true);
     const { data: { session } } = await supabase.auth.getSession();
     const r = await fetch("/api/email/send", {
