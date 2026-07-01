@@ -193,11 +193,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const updateLead = useCallback((id: string, patch: Partial<Lead>) => {
     setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch, last_activity: new Date().toISOString() } : l)));
     // Persiste no Supabase só os campos reais (RLS garante isolamento por conta).
+    const VALID_STATUS = ["active", "won", "lost", "discarded"];
     const dbPatch: Record<string, any> = {};
     for (const k of Object.keys(patch)) {
       if (!DB_COLS.has(k)) continue;
       let v = (patch as any)[k];
-      if (UUID_COLS.has(k) && (v === "" || v === undefined)) v = null; // FK: vazio -> null
+      if (v === undefined) continue;                                   // nunca envia undefined
+      if (UUID_COLS.has(k) && v === "") v = null;                      // FK: vazio -> null
+      if (k === "status" && !VALID_STATUS.includes(v)) continue;       // enum: nunca envia status inválido/vazio
       dbPatch[k] = v;
     }
     if (Object.keys(dbPatch).length) {
