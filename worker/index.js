@@ -47,6 +47,23 @@ export default {
       }
     }
 
+    // Rodar a fila de sequências + automações na hora (admin logado). Pra testar
+    // sem esperar o cron de 15 min.
+    if (url.pathname === "/api/cron/run") {
+      if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+      try {
+        const authz = request.headers.get("Authorization") || "";
+        const token = authz.startsWith("Bearer ") ? authz.slice(7) : "";
+        if (!token) return json({ error: "no_token" }, 401);
+        const caller = await validateCaller(env, token);
+        if (!caller || !caller.account_id) return json({ error: "forbidden" }, 403);
+        await Promise.all([processSequences(env), processAutomacoes(env)]);
+        return json({ ok: true });
+      } catch (err) {
+        return json({ error: "server_error", detail: String(err && err.message || err) }, 500);
+      }
+    }
+
     // Cadastro de indicador (corretor externo self-service). Público: resolve a
     // conta pelo hostname, gera o ref_code e devolve o link de indicação.
     if (url.pathname === "/api/corretor") {

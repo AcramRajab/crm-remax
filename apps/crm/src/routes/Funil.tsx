@@ -15,15 +15,22 @@ type View = "kanban" | "lista";
 
 export default function Funil() {
   const { user, canSeeAll } = useSession();
-  const { leads: all, moveStage } = useStore();
-  const leads = (canSeeAll ? all : all.filter((l) => l.owner_id === user.id)).filter((l) => l.status === "active");
+  const { leads: all, moveStage, setStatus } = useStore();
+  const mine = canSeeAll ? all : all.filter((l) => l.owner_id === user.id);
+  const leads = mine.filter((l) => l.status === "active");
+  const kanbanLeads = mine.filter((l) => l.status === "active" || l.status === "won"); // + coluna Ganho
   const [dragId, setDragId] = useState<string | null>(null);
   const [view, setView] = useState<View>("kanban");
 
-  const move = moveStage;
-  function drop(stageId: string) {
+  function drop(target: string) {
     if (!dragId) return;
-    move(dragId, stageId);
+    if (target === "__won__") {
+      setStatus(dragId, "won");
+    } else {
+      const dl = all.find((x) => x.id === dragId);
+      if (dl && dl.status !== "active") setStatus(dragId, "active"); // reabre se estava ganho
+      moveStage(dragId, target);
+    }
     setDragId(null);
   }
 
@@ -54,9 +61,9 @@ export default function Funil() {
       </div>
 
       {view === "kanban" ? (
-        <KanbanView leads={leads} onDragStart={setDragId} onDrop={drop} />
+        <KanbanView leads={kanbanLeads} onDragStart={setDragId} onDrop={drop} />
       ) : (
-        <ListaView leads={leads} onMove={move} />
+        <ListaView leads={leads} onMove={moveStage} />
       )}
     </div>
   );
@@ -82,7 +89,7 @@ function KanbanView({ leads, onDragStart, onDrop }: { leads: Lead[]; onDragStart
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
       {stages.map((stage) => {
-        const items = leads.filter((l) => (l.stage_id || firstId) === stage.id);
+        const items = leads.filter((l) => l.status === "active" && (l.stage_id || firstId) === stage.id);
         const total = items.reduce((s, l) => s + (l.valor || 0), 0);
         return (
           <div key={stage.id} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(stage.id)} className="w-[300px] shrink-0">
@@ -105,6 +112,32 @@ function KanbanView({ leads, onDragStart, onDrop }: { leads: Lead[]; onDragStart
           </div>
         );
       })}
+
+      {/* Coluna GANHO (status won) — arrastar pra cá marca como ganho */}
+      {(() => {
+        const won = leads.filter((l) => l.status === "won");
+        const total = won.reduce((s, l) => s + (l.valor || 0), 0);
+        return (
+          <div onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop("__won__")} className="w-[300px] shrink-0">
+            <div className="flex items-center justify-between mb-2.5 px-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                <h3 className="text-sm font-semibold text-emerald-700">🏆 Ganho</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {total > 0 && <span className="text-[11px] font-semibold text-emerald-600">{brl(total)}</span>}
+                <span className="text-xs font-semibold text-ink-faint bg-surface-sunken rounded-full px-2 py-0.5">{won.length}</span>
+              </div>
+            </div>
+            <div className="space-y-2.5 min-h-[120px] rounded-lg bg-emerald-50/40">
+              {won.map((l) => <LeadCard key={l.id} lead={l} onDragStart={onDragStart} />)}
+              {won.length === 0 && (
+                <div className="text-center text-xs text-ink-faint border border-dashed border-emerald-200 rounded-lg py-8">Arraste um lead pra marcar como ganho</div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -109,12 +109,21 @@ function Lista() {
   async function toggle(a: Auto) {
     await supabase.from("crm_automacoes").update({ ativo: !a.ativo, updated_at: new Date().toISOString() }).eq("id", a.id); load();
   }
+  async function rodarAgora() {
+    if (/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname)) { alert("Só funciona no site publicado (o preview local não tem a API)."); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    const r = await fetch("/api/cron/run", { method: "POST", headers: { Authorization: "Bearer " + (session?.access_token || "") } });
+    alert(r.ok ? "Fila processada (sequências + automações)." : "Não consegui rodar agora.");
+  }
 
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between mb-3">
         <div><h2 className="font-semibold text-ink">Automações</h2><p className="text-xs text-ink-soft">Cada automação: um gatilho e uma sequência de ações.</p></div>
-        <button className="btn-brand !py-1.5 text-xs" onClick={nova}><Plus size={14} /> Nova automação</button>
+        <div className="flex items-center gap-2">
+          <button className="btn-outline !py-1.5 text-xs" onClick={rodarAgora}><Zap size={14} /> Rodar agora</button>
+          <button className="btn-brand !py-1.5 text-xs" onClick={nova}><Plus size={14} /> Nova automação</button>
+        </div>
       </div>
       {loading ? <p className="text-sm text-ink-faint">Carregando…</p> : autos.length === 0 ? (
         <p className="text-sm text-ink-faint">Nenhuma automação ainda. Crie a primeira.</p>
