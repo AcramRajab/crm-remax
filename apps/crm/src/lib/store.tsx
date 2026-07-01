@@ -202,8 +202,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     if (Object.keys(dbPatch).length) {
       dbPatch.updated_at = new Date().toISOString();
-      supabase.from("crm_leads").update(dbPatch).eq("id", id).then(({ error }) => {
-        if (error) console.error("updateLead persist falhou:", error.message);
+      supabase.from("crm_leads").update(dbPatch).eq("id", id).select("id").then(({ data, error }) => {
+        if (error) {
+          console.error("updateLead persist falhou:", error);
+          try { alert("Erro ao salvar no banco: " + (error.message || JSON.stringify(error))); } catch {}
+        } else if (!data || data.length === 0) {
+          try { alert("Salvou 0 linhas (provável RLS/permissão). Campos: " + Object.keys(dbPatch).join(", ")); } catch {}
+        }
       });
     }
   }, []);
