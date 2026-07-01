@@ -165,6 +165,23 @@ section .hero-fade p,.hero h1{text-shadow:0 2px 24px rgba(0,0,0,.45)}
 .annb-close:hover{opacity:1}
 body.annb-on nav#nav{top:var(--annb)}
 
+/* --- POPUP BOAT SHOW (abre na entrada -> clica -> formulário) --- */
+.popup-ov{position:fixed;inset:0;z-index:9500;background:rgba(8,8,10,.82);
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;padding:1.2rem;
+  opacity:0;visibility:hidden;transition:opacity .35s ease}
+.popup-ov.on{opacity:1;visibility:visible}
+.popup-card{position:relative;width:min(560px,94vw);border-radius:10px;overflow:hidden;
+  box-shadow:0 30px 80px rgba(0,0,0,.6);transform:translateY(16px) scale(.98);
+  transition:transform .45s cubic-bezier(.2,.7,.2,1)}
+.popup-ov.on .popup-card{transform:none}
+.popup-card a{display:block}
+.popup-card img{width:100%;display:block;cursor:pointer}
+.popup-close{position:absolute;top:.55rem;right:.55rem;z-index:2;width:34px;height:34px;
+  border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:1.25rem;line-height:1;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .25s}
+.popup-close:hover{background:rgba(0,0,0,.85)}
+
 /* --- BOAT SHOW: SEÇÃO DE CONDIÇÕES --- */
 .bs-tag{display:inline-flex;align-items:center;gap:.5rem;background:var(--c-accent);color:#fff;
   font-weight:700;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;padding:.4rem .85rem;border-radius:3px}
@@ -201,6 +218,14 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   <span class="annb-cd" id="annbCd" aria-label="Contagem regressiva"></span>
   <a class="annb-cta" href="#boatshow">Ver condições</a>
   <button class="annb-close" id="annbClose" aria-label="Fechar aviso">×</button>
+</div>
+
+<!-- POPUP BOAT SHOW -->
+<div class="popup-ov" id="popup" role="dialog" aria-label="Convite Boat Show 2026">
+  <div class="popup-card">
+    <button class="popup-close" id="popupClose" aria-label="Fechar">×</button>
+    <a href="#contato" id="popupCta"><img src="assets/popup-boatshow.webp" alt="NOW Residence convida para o Marina Itajaí Boat Show 2026 — Garanta sua vaga"/></a>
+  </div>
 </div>
 
 <!-- PRELOADER -->
@@ -614,6 +639,29 @@ document.querySelectorAll('[data-topo]').forEach(function(el){
     a.href=url; a.target="_blank"; a.rel="noopener";
     a.addEventListener("click",function(){ if(window.NOW_TRACK) NOW_TRACK("Lead",{channel:"whatsapp",source:id,corretor:T.corretor||null}); });
   });
+})();
+
+/* ===================== POPUP BOAT SHOW ===================== */
+(function(){
+  var ov=document.getElementById("popup"); if(!ov) return;
+  var END=new Date("2026-07-05T20:00:00-03:00").getTime();
+  if(Date.now()>END) return;                                   // evento acabou -> sem popup
+  try{ if(sessionStorage.getItem("popup_seen")==="1") return; }catch(e){}
+  function open(){ ov.classList.add("on"); try{sessionStorage.setItem("popup_seen","1");}catch(e){}
+    if(window.NOW_TRACK) NOW_TRACK("ViewContent",{channel:"popup"}); }
+  function close(){ ov.classList.remove("on"); }
+  function goForm(e){
+    if(e) e.preventDefault();
+    close();
+    var t=document.getElementById("contato");
+    if(t){ if(typeof lenis!=="undefined" && lenis) lenis.scrollTo(t,{offset:-10}); else t.scrollIntoView({behavior:"smooth"}); }
+    if(window.NOW_TRACK) NOW_TRACK("Lead",{channel:"popup",action:"cta"});
+  }
+  document.getElementById("popupCta").addEventListener("click",goForm);
+  document.getElementById("popupClose").addEventListener("click",close);
+  ov.addEventListener("click",function(e){ if(e.target===ov) close(); });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape") close(); });
+  setTimeout(open, 2600);                                       // depois do preloader
 })();
 
 /* ===================== FORM (conversão) ===================== */
