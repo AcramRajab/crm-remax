@@ -49,3 +49,6 @@ n8n/**/credentials*.json
 
 # Fontes brutas de logo (WhatsApp) — usar os .webp processados em assets/
 "novos logos remax/"
+
+# Material bruto do Boat Show (stand/localização) — usar os .webp em assets/
+landing-pages/_material-boatshow/

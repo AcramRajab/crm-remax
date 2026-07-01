@@ -181,9 +181,6 @@ body.annb-on nav#nav{top:var(--annb)}
   border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:1.25rem;line-height:1;
   cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .25s}
 .popup-close:hover{background:rgba(0,0,0,.85)}
-.popup-cap{display:flex;align-items:center;justify-content:space-between;gap:.5rem 1rem;flex-wrap:wrap;
-  background:var(--c-darker);color:#fff;padding:.75rem 1.1rem;font-size:.82rem;font-weight:600;line-height:1.2}
-.popup-cap .cap-cd{color:var(--c-accent);font-variant-numeric:tabular-nums;white-space:nowrap}
 
 /* --- MODAL "FALAR NO WHATSAPP" (captura lead antes de redirecionar) --- */
 .walead-ov{position:fixed;inset:0;z-index:9600;background:rgba(8,8,10,.85);
@@ -231,7 +228,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
 
 <!-- BOAT SHOW — BARRA DE ANÚNCIO (fixa) -->
 <div class="annb" id="annb" hidden>
-  <span>🚤 <strong>Boat Show Itajaí · 02–05 jul · Stand S10</strong> — Entrada a partir de <strong>R$ 30 mil</strong> + parcelas de <strong>R$ 1.400/mês</strong></span>
+  <span>🚤 <strong>Boat Show Itajaí · 02–05 jul · Píer A2 · Stand S10</strong> — Entrada a partir de <strong>R$ 30 mil</strong> + parcelas de <strong>R$ 1.400/mês</strong></span>
   <span class="annb-cd" id="annbCd" aria-label="Contagem regressiva"></span>
   <a class="annb-cta" href="#boatshow">Ver condições</a>
   <button class="annb-close" id="annbClose" aria-label="Fechar aviso">×</button>
@@ -241,11 +238,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
 <div class="popup-ov" id="popup" role="dialog" aria-label="Convite Boat Show 2026">
   <div class="popup-card">
     <button class="popup-close" id="popupClose" aria-label="Fechar">×</button>
-    <a href="#contato" id="popupCta"><img src="assets/popup-boatshow.webp" alt="NOW Residence convida para o Marina Itajaí Boat Show 2026 — Garanta sua vaga"/></a>
-    <div class="popup-cap">
-      <span>📅 02 a 05 de julho · Stand S10</span>
-      <span class="cap-cd" id="popupCd"></span>
-    </div>
+    <a href="#contato" id="popupCta"><img src="assets/popup-boatshow.webp" alt="NOW Residence convida para o Marina Itajaí Boat Show 2026 — 02 a 05 de julho, Stand S10. Garanta sua vaga"/></a>
   </div>
 </div>
 
@@ -277,7 +270,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
     <div class="absolute inset-0 hero-overlay"></div>
     <div class="topo" style="top:-4%;right:-2%;width:46%;color:#fff;opacity:.18" data-topo="22"></div>
     <div class="relative z-10 container pb-[8vh] w-full">
-      <div class="hero-fade opacity-0 mb-5"><span class="kicker accent hero-pill">🚤 Boat Show Itajaí · 02–05 jul · Stand S10 · Condições exclusivas</span></div>
+      <div class="hero-fade opacity-0 mb-5"><span class="kicker accent hero-pill">🚤 Boat Show Itajaí · 02–05 jul · Píer A2 · Stand S10 · Condições exclusivas</span></div>
       <h1 class="display text-white text-[15vw] md:text-[12vw]">
         <span class="block overflow-hidden hero-line"><span class="block translate-y-full">VIVA</span></span>
         <span class="block overflow-hidden hero-line"><span class="block translate-y-full">O <span class="accent">AGORA</span>.</span></span>
@@ -297,7 +290,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
     <div class="topo" style="top:-4%;right:-3%;width:34%;color:var(--c-accent);opacity:.12" data-topo="18"></div>
     <div class="container relative z-10">
       <div class="max-w-3xl">
-        <span class="bs-tag">🚤 Marina Itajaí Boat Show · 02–05 jul · Stand S10</span>
+        <span class="bs-tag">🚤 Marina Itajaí Boat Show · 02–05 jul · Píer A2 · Stand S10</span>
         <h2 class="display text-4xl md:text-6xl leading-[.95] mt-6">Condições <span class="accent">exclusivas</span> do Boat Show.</h2>
         <p class="text-gray-300 font-light leading-relaxed mt-5">Durante o evento, condições comerciais que só existem lá dentro — para investir ou morar na cidade com a maior renda per capita de SC. Escolha a que faz mais sentido pra você:</p>
       </div>
@@ -337,6 +330,30 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
             <a id="waBtnBoat" href="#" class="btn btn-outline justify-center">Falar no WhatsApp</a>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ONDE NOS ENCONTRAR (stand + localização no Boat Show) -->
+  <section id="ondeencontrar" class="py-24 md:py-32 bg-[var(--c-dark)] relative overflow-hidden wmk">
+    <div class="topo" style="bottom:-6%;left:-3%;width:32%;color:var(--c-accent);opacity:.10" data-topo="18"></div>
+    <div class="container relative z-10">
+      <div class="max-w-3xl">
+        <span class="bs-tag">📍 Píer A2 · Stand S10</span>
+        <h2 class="display text-4xl md:text-6xl leading-[.95] mt-6">Onde nos <span class="accent">encontrar</span>.</h2>
+        <p class="text-gray-300 font-light leading-relaxed mt-5">Estaremos no <strong class="text-white">Marina Itajaí Boat Show 2026</strong>, de <strong class="text-white">02 a 05 de julho</strong>. Nosso stand fica no <strong class="text-white">Píer A2 · Stand S10</strong> — passe para conhecer o NOW Residence, fazer o tour VR e garantir as condições exclusivas da feira.</p>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4 md:gap-5 mt-12">
+        <div class="rounded-md overflow-hidden border border-[var(--c-line)]">
+          <img src="assets/bs-stand.webp" alt="Nosso stand no Marina Itajaí Boat Show 2026" class="w-full"/>
+        </div>
+        <div class="rounded-md overflow-hidden border border-[var(--c-accent)]">
+          <img src="assets/bs-local.webp" alt="Localização do stand: Píer A2, Stand S10" class="w-full"/>
+        </div>
+      </div>
+      <div class="mt-8 flex flex-wrap gap-4">
+        <a href="#contato" class="btn btn-magenta">Agendar visita ao stand</a>
+        <a id="waBtnStand" href="#" class="btn btn-outline">Falar no WhatsApp</a>
       </div>
     </div>
   </section>
@@ -551,7 +568,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
       </div>
       <form id="leadForm" class="bg-white p-7 md:p-9 rounded-sm shadow-xl border border-black/5">
         <h3 class="display text-2xl mb-1">Receba as condições do Boat Show</h3>
-        <p class="text-xs text-[var(--c-muted-dark)] mb-5">Atendimento personalizado para conhecer as unidades da campanha (02–05 jul · Stand S10).</p>
+        <p class="text-xs text-[var(--c-muted-dark)] mb-5">Atendimento personalizado para conhecer as unidades da campanha (02–05 jul · Píer A2 · Stand S10).</p>
         <div class="grid gap-3">
           <input class="field field-light" name="nome" placeholder="Seu nome" required/>
           <input class="field field-light" name="email" type="email" placeholder="Seu melhor e-mail" required/>
@@ -682,7 +699,7 @@ document.querySelectorAll('[data-topo]').forEach(function(el){
     setTimeout(function(){ var n=form.querySelector("[name=nome]"); if(n) n.focus(); },120); }
   function closeM(){ ov.classList.remove("on"); }
 
-  ["waBtn","waBtnBoat","waFloat"].forEach(function(id){
+  ["waBtn","waBtnBoat","waBtnStand","waFloat"].forEach(function(id){
     var a=document.getElementById(id); if(!a)return;
     a.href=url; a.rel="noopener";                          // fallback se o JS falhar
     a.addEventListener("click",function(e){ e.preventDefault(); openM(id); });
@@ -709,21 +726,7 @@ document.querySelectorAll('[data-topo]').forEach(function(el){
 (function(){
   var ov=document.getElementById("popup"); if(!ov) return;
   var END=new Date("2026-07-05T20:00:00-03:00").getTime();
-  var START=new Date("2026-07-02T09:00:00-03:00").getTime();   // abertura do evento
   if(Date.now()>END) return;                                   // evento acabou -> sem popup
-  var cd=document.getElementById("popupCd");
-  function pad(n){ return (n<10?"0":"")+n; }
-  function tickCd(){
-    if(!cd) return;
-    var now=Date.now();
-    if(now>=START){ cd.textContent="Acontecendo agora"; return; }
-    var s=Math.floor((START-now)/1000);
-    var d=Math.floor(s/86400); s-=d*86400;
-    var h=Math.floor(s/3600); s-=h*3600;
-    var m=Math.floor(s/60);
-    cd.textContent="Começa em "+d+"d "+pad(h)+"h "+pad(m)+"m";
-  }
-  tickCd(); setInterval(tickCd,30000);
   function open(){ ov.classList.add("on");                      // abre SEMPRE (toda visita)
     if(window.NOW_TRACK) NOW_TRACK("ViewContent",{channel:"popup"}); }
   function close(){ ov.classList.remove("on"); }
