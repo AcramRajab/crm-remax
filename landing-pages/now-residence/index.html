@@ -140,7 +140,7 @@ section .hero-fade p,.hero h1{text-shadow:0 2px 24px rgba(0,0,0,.45)}
 /* chip escuro pra exibir o logo branco sobre fundo claro */
 .remax-chip{display:inline-flex;align-items:center;gap:.6rem;background:var(--c-darker);
   padding:.55rem .9rem;border-radius:4px}
-.remax-chip img{height:26px;width:auto}
+.remax-chip img{height:32px;width:auto}
 
 /* --- NOISE --- */
 .noise-overlay{position:fixed;inset:0;pointer-events:none;z-index:9000;opacity:.04;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
@@ -148,6 +148,38 @@ section .hero-fade p,.hero h1{text-shadow:0 2px 24px rgba(0,0,0,.45)}
 /* --- WHATSAPP FLOAT --- */
 .wa-float{position:fixed;right:1.3rem;bottom:1.3rem;z-index:8000;width:58px;height:58px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.35);transition:transform .3s}
 .wa-float:hover{transform:scale(1.08)}
+
+/* --- BOAT SHOW: BARRA DE ANÚNCIO (fixa no topo) --- */
+:root{--annb:0px}
+.annb{position:fixed;top:0;left:0;width:100%;z-index:60;background:var(--c-accent);color:#fff;
+  display:flex;align-items:center;justify-content:center;gap:.6rem 1.1rem;flex-wrap:wrap;
+  padding:.5rem 3rem .5rem 1rem;font-size:.78rem;line-height:1.2;text-align:center;
+  box-shadow:0 6px 20px rgba(0,0,0,.28)}
+.annb strong{font-weight:700}
+.annb .annb-cd{font-variant-numeric:tabular-nums;font-weight:700;background:rgba(0,0,0,.18);
+  padding:.15rem .5rem;border-radius:3px;letter-spacing:.02em}
+.annb .annb-cta{background:#fff;color:var(--c-accent);font-weight:700;text-transform:uppercase;
+  letter-spacing:.05em;font-size:.7rem;padding:.4rem .8rem;border-radius:3px;text-decoration:none;
+  transition:transform .25s}
+.annb .annb-cta:hover{transform:translateY(-1px)}
+.annb-close{position:absolute;right:.6rem;top:50%;transform:translateY(-50%);background:transparent;
+  border:0;color:#fff;opacity:.85;cursor:pointer;font-size:1.1rem;line-height:1;padding:.2rem .4rem}
+.annb-close:hover{opacity:1}
+body.annb-on nav#nav{top:var(--annb)}
+
+/* --- BOAT SHOW: SEÇÃO DE CONDIÇÕES --- */
+.bs-tag{display:inline-flex;align-items:center;gap:.5rem;background:var(--c-accent);color:#fff;
+  font-weight:700;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;padding:.4rem .85rem;border-radius:3px}
+.bs-card{background:var(--c-card);border:1px solid var(--c-line);border-radius:4px;padding:2rem;position:relative;height:100%}
+.bs-card.feature{border-color:var(--c-accent);box-shadow:0 20px 50px -20px rgba(236,0,140,.45)}
+.bs-card .bs-opt{font-family:var(--font-display);font-size:1.6rem;line-height:1;color:#fff}
+.bs-card .bs-sub{color:var(--c-accent);text-transform:uppercase;letter-spacing:.14em;font-size:.7rem;font-weight:700;margin-top:.4rem}
+.bs-li{display:flex;gap:.6rem;align-items:flex-start;color:var(--c-muted);font-weight:300;padding:.45rem 0;border-bottom:1px solid var(--c-line)}
+.bs-li:last-child{border-bottom:0}
+.bs-li b{color:#fff;font-weight:600}
+.bs-li svg{flex:0 0 auto;margin-top:.15rem;color:var(--c-accent)}
+.bs-vr{background:linear-gradient(135deg,rgba(236,0,140,.14),rgba(255,255,255,.02));
+  border:1px solid var(--c-accent);border-radius:4px;padding:2rem}
 
 @media (max-width:768px){
   .card-inner{grid-template-columns:1fr}
@@ -164,6 +196,14 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
 <body>
 <!-- UTILS -->
 <div class="noise-overlay"></div>
+
+<!-- BOAT SHOW — BARRA DE ANÚNCIO (fixa) -->
+<div class="annb" id="annb" hidden>
+  <span>🚤 <strong>Boat Show Itajaí · 02–05 jul · Stand S10</strong> — Entrada a partir de <strong>R$ 30 mil</strong> + parcelas de <strong>R$ 1.400/mês</strong></span>
+  <span class="annb-cd" id="annbCd" aria-label="Contagem regressiva"></span>
+  <a class="annb-cta" href="#boatshow">Ver condições</a>
+  <button class="annb-close" id="annbClose" aria-label="Fechar aviso">×</button>
+</div>
 
 <!-- PRELOADER -->
 <div class="loader" id="loader">
@@ -193,7 +233,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
     <div class="absolute inset-0 hero-overlay"></div>
     <div class="topo" style="top:-4%;right:-2%;width:46%;color:#fff;opacity:.18" data-topo="22"></div>
     <div class="relative z-10 container pb-[8vh] w-full">
-      <div class="hero-fade opacity-0 mb-5"><span class="kicker accent hero-pill">NOW Residence · Itajaí — SC · O futuro é agora</span></div>
+      <div class="hero-fade opacity-0 mb-5"><span class="kicker accent hero-pill">🚤 Boat Show Itajaí · 02–05 jul · Stand S10 · Condições exclusivas</span></div>
       <h1 class="display text-white text-[15vw] md:text-[12vw]">
         <span class="block overflow-hidden hero-line"><span class="block translate-y-full">VIVA</span></span>
         <span class="block overflow-hidden hero-line"><span class="block translate-y-full">O <span class="accent">AGORA</span>.</span></span>
@@ -202,8 +242,57 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
         <p class="text-lg font-light text-gray-200 leading-relaxed">Lofts e compactos de alto padrão onde tecnologia, estilo e funcionalidade trabalham em harmonia — pensado para morar ou investir com alta valorização.</p>
       </div>
       <div class="hero-fade opacity-0 mt-8 flex flex-wrap gap-4">
-        <a href="#contato" class="btn btn-magenta">Agende sua visita</a>
+        <a href="#boatshow" class="btn btn-magenta">Condições do Boat Show</a>
         <a href="#empreendimento" class="btn btn-outline">Conheça o projeto</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOAT SHOW — CONDIÇÕES EXCLUSIVAS -->
+  <section id="boatshow" class="py-24 md:py-32 bg-[var(--c-darker)] relative overflow-hidden">
+    <div class="topo" style="top:-4%;right:-3%;width:34%;color:var(--c-accent);opacity:.12" data-topo="18"></div>
+    <div class="container relative z-10">
+      <div class="max-w-3xl">
+        <span class="bs-tag">🚤 Marina Itajaí Boat Show · 02–05 jul · Stand S10</span>
+        <h2 class="display text-4xl md:text-6xl leading-[.95] mt-6">Condições <span class="accent">exclusivas</span> do Boat Show.</h2>
+        <p class="text-gray-300 font-light leading-relaxed mt-5">Durante o evento, condições comerciais que só existem lá dentro — para investir ou morar na cidade com a maior renda per capita de SC. Escolha a que faz mais sentido pra você:</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-4 md:gap-5 mt-12 items-stretch">
+        <!-- Opção 1 -->
+        <div class="bs-card">
+          <div class="bs-opt">Opção 1 — Desconto especial</div>
+          <div class="bs-sub">Para quem fecha à vista</div>
+          <div class="mt-5">
+            <div class="bs-li"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg><span>Até <b>5% de desconto</b> em unidades de 1 dormitório.</span></div>
+            <div class="bs-li"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg><span>Até <b>10% de desconto</b> em unidades de 2 dormitórios.</span></div>
+          </div>
+        </div>
+        <!-- Opção 2 (destaque) -->
+        <div class="bs-card feature">
+          <div class="bs-opt">Opção 2 — Pagamento facilitado</div>
+          <div class="bs-sub">A condição mais procurada</div>
+          <div class="mt-5">
+            <div class="bs-li"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg><span>Entrada a partir de <b>R$ 30 mil</b> (a partir de 7% do valor).</span></div>
+            <div class="bs-li"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg><span>Parcelas a partir de <b>R$ 1.400/mês</b>.</span></div>
+            <div class="bs-li"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg><span>Valores de tabela com <b>fluxo de pagamento diferenciado</b>.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VR -->
+      <div class="bs-vr mt-5">
+        <div class="grid md:grid-cols-[1fr_auto] gap-6 items-center">
+          <div>
+            <div class="bs-sub" style="margin-top:0">🥽 Tour imersivo com óculos VR</div>
+            <h3 class="display text-2xl md:text-3xl mt-2">Conheça seu futuro imóvel antes da entrega.</h3>
+            <p class="text-gray-300 font-light leading-relaxed mt-3 max-w-2xl">No stand, faça um tour de Realidade Virtual com óculos de última geração: caminhe pelos ambientes, veja os acabamentos e sinta as dimensões reais. Uma forma moderna de escolher com muito mais segurança — com <b class="text-white font-semibold">atendimento exclusivo</b> do nosso time durante o evento.</p>
+          </div>
+          <div class="flex md:flex-col gap-3 shrink-0">
+            <a href="#contato" class="btn btn-magenta justify-center">Garantir minha condição</a>
+            <a id="waBtnBoat" href="#" class="btn btn-outline justify-center">Falar no WhatsApp</a>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -412,18 +501,20 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
           Falar no WhatsApp
         </a>
         <div class="mt-9 flex items-center gap-3">
-          <img src="assets/remax-dark.webp" alt="RE/MAX" style="height:30px;width:auto"/>
+          <span class="remax-chip"><img src="assets/remax-white.webp" alt="RE/MAX"/></span>
           <span class="text-sm text-[var(--c-muted-dark)] leading-snug">Comercialização e atendimento<br/><strong class="text-[var(--c-text)]">parceria oficial RE/MAX</strong></span>
         </div>
       </div>
       <form id="leadForm" class="bg-white p-7 md:p-9 rounded-sm shadow-xl border border-black/5">
-        <h3 class="display text-2xl mb-5">Receba as condições</h3>
+        <h3 class="display text-2xl mb-1">Receba as condições do Boat Show</h3>
+        <p class="text-xs text-[var(--c-muted-dark)] mb-5">Atendimento personalizado para conhecer as unidades da campanha (02–05 jul · Stand S10).</p>
         <div class="grid gap-3">
           <input class="field field-light" name="nome" placeholder="Seu nome" required/>
           <input class="field field-light" name="email" type="email" placeholder="Seu melhor e-mail" required/>
           <input class="field field-light" name="telefone" type="tel" placeholder="WhatsApp (DDD + número)" required/>
           <select class="field field-light" name="interesse" required>
             <option value="" disabled selected>Tenho interesse em…</option>
+            <option>Condições do Boat Show</option>
             <option>Investir (renda / valorização)</option>
             <option>Morar</option>
             <option>Loft Plus</option>
@@ -486,14 +577,44 @@ document.querySelectorAll('[data-topo]').forEach(function(el){
   el.innerHTML=buildTopo(parseInt(el.getAttribute('data-topo'),10)||16);
 });
 
+/* ===================== BOAT SHOW — BARRA + CONTAGEM REGRESSIVA ===================== */
+(function(){
+  var bar=document.getElementById("annb"); if(!bar) return;
+  var cd=document.getElementById("annbCd");
+  var START=new Date("2026-07-02T09:00:00-03:00").getTime();  // abertura do evento
+  var END=new Date("2026-07-05T20:00:00-03:00").getTime();    // encerramento
+  try{ if(localStorage.getItem("annb_closed")==="1") return; }catch(e){}
+  if(Date.now()>END) return;                                  // evento acabou -> sem barra
+
+  function setH(){ document.documentElement.style.setProperty("--annb", bar.offsetHeight+"px"); }
+  function pad(n){ return (n<10?"0":"")+n; }
+  function hide(){ bar.hidden=true; document.body.classList.remove("annb-on"); document.documentElement.style.setProperty("--annb","0px"); }
+  function tick(){
+    var now=Date.now();
+    if(now>END){ hide(); return; }
+    if(now>=START){ cd.textContent="ACONTECENDO AGORA"; setH(); return; }
+    var s=Math.floor((START-now)/1000);
+    var d=Math.floor(s/86400); s-=d*86400;
+    var h=Math.floor(s/3600); s-=h*3600;
+    var m=Math.floor(s/60);
+    cd.textContent="faltam "+d+"d "+pad(h)+"h "+pad(m)+"m"; setH();
+  }
+  var close=document.getElementById("annbClose");
+  if(close) close.addEventListener("click",function(){ try{localStorage.setItem("annb_closed","1");}catch(e){} hide(); });
+  bar.hidden=false; document.body.classList.add("annb-on"); tick(); setInterval(tick,30000);
+  window.addEventListener("resize",function(){ if(!bar.hidden) setH(); });
+})();
+
 /* ===================== WHATSAPP ===================== */
 (function(){
-  var cfg=(window.NOW_TRACKING||{}).whatsapp||{number:"5547000000000",message:"Olá! Tenho interesse no NOW Residence."};
-  var url="https://wa.me/"+cfg.number+"?text="+encodeURIComponent(cfg.message);
-  ["waBtn","waFloat"].forEach(function(id){
+  var T=window.NOW_TRACKING||{};
+  var cfg=T.whatsapp||{number:"5547992012292",message:"Olá! Tenho interesse no NOW Residence."};
+  var msg=cfg.message + (T.corretor ? " (corretor: "+T.corretor+")" : "");
+  var url="https://wa.me/"+cfg.number+"?text="+encodeURIComponent(msg);
+  ["waBtn","waBtnBoat","waFloat"].forEach(function(id){
     var a=document.getElementById(id); if(!a)return;
     a.href=url; a.target="_blank"; a.rel="noopener";
-    a.addEventListener("click",function(){ if(window.NOW_TRACK) NOW_TRACK("Lead",{channel:"whatsapp",source:id}); });
+    a.addEventListener("click",function(){ if(window.NOW_TRACK) NOW_TRACK("Lead",{channel:"whatsapp",source:id,corretor:T.corretor||null}); });
   });
 })();
 
@@ -509,7 +630,7 @@ document.getElementById("leadForm").addEventListener("submit",function(e){
   if(msg){ msg.textContent="Enviando…"; msg.style.color="var(--c-accent)"; }
   /* Ingestão: POST pro Worker. A CONTA é resolvida no servidor pelo hostname
      (anti-spoof); o browser só manda o slug do empreendimento + os dados. */
-  var payload=Object.assign({slug:(window.NOW_TRACKING||{}).slug,page_url:location.href},data);
+  var payload=Object.assign({slug:(window.NOW_TRACKING||{}).slug,corretor:(window.NOW_TRACKING||{}).corretor||null,page_url:location.href},data);
   fetch("/api/lead",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify(payload),keepalive:true})
     .catch(function(){})

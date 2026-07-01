@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Palette, Shuffle, Users as UsersIcon, KeyRound,
-  Check, Info, Plus, Shield, X, Loader2, Copy,
+  Check, Info, Plus, Shield, X, Loader2, Copy, Link2,
 } from "lucide-react";
 import { account } from "../lib/tenant";
 import { supabase } from "../lib/supabase";
@@ -20,7 +20,12 @@ interface Member {
   name: string | null;
   email: string | null;
   role: string;
+  ref_code: string | null;
 }
+
+// Slug do empreendimento em campanha (Boat Show). O link aponta pro mesmo host
+// do CRM (LPs e CRM moram no mesmo Worker) — não depende de domínio hardcodado.
+const CAMPANHA_SLUG = "now-residence";
 
 type Tab = "marca" | "distribuicao" | "equipe" | "credenciais";
 
@@ -153,7 +158,7 @@ function Equipe() {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("core_usuarios")
-      .select("id, user_id, name, email, role")
+      .select("id, user_id, name, email, role, ref_code")
       .order("created_at", { ascending: true });
     setMembers((data as Member[]) || []);
     setLoading(false);
@@ -162,7 +167,7 @@ function Equipe() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <Section title="Equipe & papéis" desc="Membros desta conta (isolados por RLS). Corretor vê só os próprios leads; admin vê toda a conta. Cada imobiliária tem a sua equipe.">
+    <Section title="Equipe & papéis" desc="Membros desta conta (isolados por RLS). Corretor vê só os próprios leads; admin vê toda a conta. Cada um tem um link de divulgação próprio — o lead que entrar por ele cai atribuído a esse corretor.">
       {loading ? (
         <p className="text-sm text-ink-faint">Carregando equipe…</p>
       ) : (
@@ -171,17 +176,20 @@ function Equipe() {
             const display = m.name || m.email?.split("@")[0] || "—";
             const isAdminRole = m.role === "account_admin" || m.role === "super_admin";
             return (
-              <div key={m.id} className="flex items-center justify-between p-3 rounded-lg border border-line">
-                <div className="flex items-center gap-2.5">
-                  <Avatar name={display} size={34} />
-                  <div>
-                    <div className="text-sm font-semibold text-ink">{display}</div>
-                    <div className="text-xs text-ink-faint">{m.email || "—"}</div>
+              <div key={m.id} className="p-3 rounded-lg border border-line">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Avatar name={display} size={34} />
+                    <div>
+                      <div className="text-sm font-semibold text-ink">{display}</div>
+                      <div className="text-xs text-ink-faint">{m.email || "—"}</div>
+                    </div>
                   </div>
+                  <span className={`chip ${isAdminRole ? "bg-violet-100 text-violet-700" : "bg-sky-100 text-sky-700"}`}>
+                    <Shield size={12} /> {ROLE_LABEL[m.role] || m.role}
+                  </span>
                 </div>
-                <span className={`chip ${isAdminRole ? "bg-violet-100 text-violet-700" : "bg-sky-100 text-sky-700"}`}>
-                  <Shield size={12} /> {ROLE_LABEL[m.role] || m.role}
-                </span>
+                <RefLink refCode={m.ref_code} />
               </div>
             );
           })}
@@ -194,6 +202,28 @@ function Equipe() {
 
       {invite && <InviteModal onClose={() => setInvite(false)} onDone={load} />}
     </Section>
+  );
+}
+
+// Link de divulgação do corretor (campanha Boat Show). Aponta pro mesmo host do
+// CRM; o ?c=<ref_code> faz o lead cair atribuído a ele no Worker.
+function RefLink({ refCode }: { refCode: string | null }) {
+  const [copied, setCopied] = useState(false);
+  if (!refCode) return null;
+  const url = `${window.location.origin}/${CAMPANHA_SLUG}?c=${refCode}`;
+  function copy() {
+    navigator.clipboard?.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  return (
+    <div className="mt-2.5 flex items-center gap-2 rounded-md bg-surface-muted border border-line px-2.5 py-1.5">
+      <Link2 size={13} className="text-ink-faint shrink-0" />
+      <span className="text-[11px] text-ink-soft font-mono truncate flex-1" title={url}>{url}</span>
+      <button type="button" className="btn-outline !px-2 !py-1 !text-[11px] shrink-0" onClick={copy}>
+        {copied ? <><Check size={12} /> Copiado</> : <><Copy size={12} /> Copiar link</>}
+      </button>
+    </div>
   );
 }
 

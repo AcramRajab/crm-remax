@@ -32,10 +32,26 @@ window.NOW_TRACKING = {
 
   // WhatsApp de conversão (clique = evento Lead, action_source business_messaging)
   whatsapp: {
-    number: "5547000000000",              // REPLACE com o número comercial
-    message: "Olá! Tenho interesse no NOW Residence. Quero saber mais."
+    number: "5547992012292",              // número comercial do Boat Show
+    message: "Olá! Quero as condições exclusivas do NOW Residence no Boat Show Itajaí."
   }
 };
+
+/* CORRETOR (atribuição): cada corretor divulga .../now-residence?c=<ref_code>.
+   Capturamos o ?c= na entrada e guardamos (sobrevive à navegação e ao retorno
+   pelo e-mail/WhatsApp). Vai junto no form -> o Worker resolve para o owner do
+   lead no CRM. Sem ?c=, segue a distribuição normal. */
+(function () {
+  var KEY = "now_corretor";
+  var ref = "";
+  try {
+    var q = new URLSearchParams(location.search);
+    ref = (q.get("c") || q.get("corretor") || "").trim().toLowerCase();
+    if (ref) localStorage.setItem(KEY, ref);
+    else ref = (localStorage.getItem(KEY) || "").trim().toLowerCase();
+  } catch (e) {}
+  window.NOW_TRACKING.corretor = ref || null;
+})();
 
 /* Stub mínimo de captura. Quando o tracking-kit for integrado (decisão
    aberta #5: cópia vs submódulo), ele substitui este stub e usa o mesmo

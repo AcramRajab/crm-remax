@@ -58,7 +58,17 @@ async function handleLead(request, env, url) {
     if (emps.length) empreendimento_id = emps[0].id;
   }
 
-  // 3) Lead.
+  // 3) Atribuição por corretor (?c=<ref_code> no link de divulgação).
+  //    Resolve o ref_code DENTRO da conta -> owner_id (auth.users). Se não vier
+  //    ou não casar, owner_id fica nulo e a distribuição normal assume depois.
+  const ref = String(data.corretor || data.c || "").trim().toLowerCase();
+  let owner_id = null;
+  if (ref) {
+    const us = await sb(`core_usuarios?account_id=eq.${account_id}&ref_code=eq.${encodeURIComponent(ref)}&select=user_id&limit=1`);
+    if (us.length) owner_id = us[0].user_id;
+  }
+
+  // 4) Lead.
   const nome = String(data.nome || "").trim();
   const parts = nome.split(/\s+/).filter(Boolean);
   const first_name = parts.shift() || null;
@@ -70,16 +80,17 @@ async function handleLead(request, env, url) {
     phone: data.telefone || null,
     first_name, last_name,
     origin: "inbound",
-    journey: { channel: "form", interesse: data.interesse || null }
+    owner_id,
+    journey: { channel: "form", interesse: data.interesse || null, corretor_ref: ref || null }
   }});
 
-  // 4) Evento Lead (também alimenta track_eventos).
+  // 5) Evento Lead (também alimenta track_eventos).
   await sb("track_eventos", { method: "POST", body: {
     account_id, empreendimento_id, slug,
     event_id: crypto.randomUUID(),
     event_name: "Lead",
     page_url: data.page_url || null,
-    properties: { channel: "form", interesse: data.interesse || null }
+    properties: { channel: "form", interesse: data.interesse || null, corretor_ref: ref || null }
   }});
 
   return json({ ok: true });
