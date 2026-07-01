@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import { Flame, Clock, Phone, LayoutGrid, List as ListIcon } from "lucide-react";
 import { stages, getUser, phaseLabel } from "../lib/mock";
 import { timeAgo, scoreColor } from "../lib/format";
+
+const brl = (v?: number | null) =>
+  v == null ? null : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 import { useSession } from "../lib/session";
 import { useStore } from "../lib/store";
 import { Avatar } from "../components/Avatar";
@@ -78,6 +81,7 @@ function KanbanView({ leads, onDragStart, onDrop }: { leads: Lead[]; onDragStart
     <div className="flex gap-4 overflow-x-auto pb-4">
       {stages.map((stage) => {
         const items = leads.filter((l) => l.stage_id === stage.id);
+        const total = items.reduce((s, l) => s + (l.valor || 0), 0);
         return (
           <div key={stage.id} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(stage.id)} className="w-[300px] shrink-0">
             <div className="flex items-center justify-between mb-2.5 px-1">
@@ -85,7 +89,10 @@ function KanbanView({ leads, onDragStart, onDrop }: { leads: Lead[]; onDragStart
                 <span className={`w-2 h-2 rounded-full ${stage.phase === "topo" ? "bg-sky-400" : stage.phase === "meio" ? "bg-amber-400" : "bg-emerald-500"}`} />
                 <h3 className="text-sm font-semibold text-ink">{stage.name}</h3>
               </div>
-              <span className="text-xs font-semibold text-ink-faint bg-surface-sunken rounded-full px-2 py-0.5">{items.length}</span>
+              <div className="flex items-center gap-2">
+                {total > 0 && <span className="text-[11px] font-semibold text-emerald-600">{brl(total)}</span>}
+                <span className="text-xs font-semibold text-ink-faint bg-surface-sunken rounded-full px-2 py-0.5">{items.length}</span>
+              </div>
             </div>
             <div className="space-y-2.5 min-h-[120px]">
               {items.map((l) => <LeadCard key={l.id} lead={l} onDragStart={onDragStart} />)}
@@ -114,6 +121,7 @@ function LeadCard({ lead: l, onDragStart }: { lead: Lead; onDragStart: (id: stri
         <span className={`chip ${scoreColor(l.score)}`}><Flame size={12} /> {l.score}</span>
       </div>
       <div className="text-xs text-brand font-medium mt-1">{l.persona}</div>
+      {l.valor != null && <div className="text-sm font-bold text-emerald-600 mt-1">{brl(l.valor)}</div>}
       <div className="text-xs text-ink-faint mt-2 truncate">{l.lt_source}</div>
       <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-line">
         <div className="flex items-center gap-1.5 text-xs text-ink-soft">

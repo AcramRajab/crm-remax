@@ -73,6 +73,7 @@ function mapLead(r: any): Lead {
     phone: r.phone || "",
     persona: r.persona || "—",
     score: r.score ?? 0,
+    valor: r.valor ?? null,
     stage_id: r.stage_id || "s_novo",   // cai na 1ª coluna do funil
     owner_id: r.owner_id || "",
     status: (r.status as LeadStatus) || "active",
@@ -149,8 +150,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return lead;
   }, []);
 
+  // Colunas que existem em crm_leads e NÃO referenciam mock (stage_id/owner_id
+  // ainda usam dados de demonstração, então não são persistidos aqui).
+  const DB_COLS = new Set([
+    "valor", "first_name", "last_name", "email", "phone",
+    "persona", "score", "status", "discard_reason", "followup_count",
+  ]);
+
   const updateLead = useCallback((id: string, patch: Partial<Lead>) => {
     setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch, last_activity: new Date().toISOString() } : l)));
+    // Persiste no Supabase só os campos reais (RLS garante isolamento por conta).
+    const dbPatch: Record<string, any> = {};
+    for (const k of Object.keys(patch)) if (DB_COLS.has(k)) dbPatch[k] = (patch as any)[k];
+    if (Object.keys(dbPatch).length) {
+      dbPatch.updated_at = new Date().toISOString();
+      supabase.from("crm_leads").update(dbPatch).eq("id", id).then(({ error }) => {
+        if (error) console.error("updateLead persist falhou:", error.message);
+      });
+    }
   }, []);
 
   const moveStage = useCallback((id: string, stageId: string) => updateLead(id, { stage_id: stageId }), [updateLead]);

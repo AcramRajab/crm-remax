@@ -60,6 +60,7 @@ export interface Lead {
   phone: string;
   persona: string;
   score: number;
+  valor?: number | null;        // valor do negócio (R$) — pipeline/forecast
   stage_id: string;
   owner_id: string;
   status: LeadStatus;

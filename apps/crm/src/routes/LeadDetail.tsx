@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
+import { supabase } from "../lib/supabase";
 import {
   ArrowLeft, Sparkles, Flame, Mail, Phone, MapPin, Send,
   MessageCircle, StickyNote, CheckSquare, Square, RefreshCw, ChevronDown,
@@ -8,8 +9,14 @@ import {
 import TrackingPanel from "../components/TrackingPanel";
 import {
   getUser, stages, users,
-  dossies, messages as msgMap, notes as noteMap, activities as actMap,
+  dossies, messages as msgMap, activities as actMap,
 } from "../lib/mock";
+
+// Anotação real (crm_notas).
+interface DbNote { id: string; body: string; created_at: string }
+// Valor em R$ (pt-BR), sem centavos.
+const brl = (v?: number | null) =>
+  v == null ? null : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 import { useStore } from "../lib/store";
 import { timeAgo, timeLabel, dateLabel, scoreColor } from "../lib/format";
 import { Avatar } from "../components/Avatar";
@@ -27,6 +34,18 @@ export default function LeadDetail() {
   const [showDiscard, setShowDiscard] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [notes, setNotes] = useState<DbNote[]>([]);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+
+  // Carrega as anotações REAIS do lead (crm_notas, isolado por RLS).
+  useEffect(() => {
+    let on = true;
+    supabase.from("crm_notas").select("id, body, created_at")
+      .eq("lead_id", id).order("created_at", { ascending: false })
+      .then(({ data }) => { if (on) setNotes((data as DbNote[]) || []); });
+    return () => { on = false; };
+  }, [id]);
 
   if (!lead) {
     return (
@@ -39,7 +58,6 @@ export default function LeadDetail() {
   const owner = getUser(lead.owner_id);
   const emp = getEmp(lead.empreendimento_id);
   const dossie = dossies[id];
-  const notes = noteMap[id] || [];
   const tasks = allTasks.filter((t) => t.lead_id === id);
   const acts = actMap[id] || [];
   const channelMsgs = msgs.filter((m) => m.channel === channel);
@@ -48,6 +66,19 @@ export default function LeadDetail() {
     if (!draft.trim()) return;
     setMsgs((m) => [...m, { id: "new" + m.length, channel, direction: "outbound", body: draft, at: new Date().toISOString(), status: "sent" }]);
     setDraft("");
+  }
+
+  async function saveNote() {
+    const body = noteDraft.trim();
+    if (!body || !lead) return;
+    setSavingNote(true);
+    const { data: auth } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from("crm_notas")
+      .insert({ account_id: lead.account_id, lead_id: id, body, author_id: auth?.user?.id || null })
+      .select("id, body, created_at").single();
+    setSavingNote(false);
+    if (error) { alert("Não consegui salvar a anotação: " + error.message); return; }
+    if (data) { setNotes((n) => [data as DbNote, ...n]); setNoteDraft(""); }
   }
 
   return (
@@ -92,6 +123,10 @@ export default function LeadDetail() {
           </div>
           <div className="flex items-center gap-2">
             <span className={`chip ${scoreColor(lead.score)} !text-sm !px-3 !py-1`}><Flame size={14} /> Score {lead.score}</span>
+            <button onClick={() => setShowEdit(true)} title="Editar valor do negócio"
+              className="chip bg-emerald-100 text-emerald-700 hover:bg-emerald-200 !text-sm !px-3 !py-1">
+              {lead.valor != null ? brl(lead.valor) : "+ Valor"}
+            </button>
             <div className="relative">
               <select value={lead.stage_id} onChange={(e) => moveStage(id, e.target.value)}
                 className="appearance-none bg-brand-soft text-brand font-semibold rounded-lg pl-3 pr-8 py-1.5 text-sm cursor-pointer focus:outline-none">
@@ -124,7 +159,7 @@ export default function LeadDetail() {
               {users.filter((u) => u.role === "broker" || u.id === lead.owner_id).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
-          <span className="text-[11px] text-ink-faint">distribuição: rodízio (n8n)</span>
+          <span className="text-[11px] text-ink-faint">atribuição manual · troque o responsável acima</span>
           <div className="flex-1" />
           {lead.status === "active" && (
             <button className="btn-ghost text-xs text-rose-500 hover:bg-rose-50" onClick={() => setShowDiscard(true)}>
@@ -287,13 +322,19 @@ export default function LeadDetail() {
             <div className="space-y-3">
               {notes.map((n) => (
                 <div key={n.id} className="text-sm">
-                  <p className="text-ink">{n.body}</p>
-                  <div className="text-[11px] text-ink-faint mt-1">{n.author} · {timeAgo(n.at)}</div>
+                  <p className="text-ink whitespace-pre-wrap">{n.body}</p>
+                  <div className="text-[11px] text-ink-faint mt-1">{timeAgo(n.created_at)}</div>
                 </div>
               ))}
               {notes.length === 0 && <p className="text-sm text-ink-faint">Sem anotações.</p>}
             </div>
-            <textarea className="input mt-3 resize-none" rows={2} placeholder="Escrever anotação…" />
+            <textarea className="input mt-3 resize-none" rows={2} placeholder="Escrever anotação…"
+              value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveNote(); }} />
+            <button className="btn-brand w-full mt-2 !py-1.5 text-xs disabled:opacity-60"
+              disabled={!noteDraft.trim() || savingNote} onClick={saveNote}>
+              {savingNote ? "Salvando…" : "Salvar anotação"}
+            </button>
           </section>
 
           {/* Atividades */}
@@ -335,6 +376,7 @@ function AddTask({ onAdd, onCancel }: { onAdd: (title: string, dueIso: string) =
 function EditModal({ lead, onClose, onSave }: { lead: any; onClose: () => void; onSave: (patch: any) => void }) {
   const [f, setF] = useState({
     first_name: lead.first_name, last_name: lead.last_name, email: lead.email, phone: lead.phone,
+    valor: lead.valor != null ? String(lead.valor) : "",
     tags: (lead.tags || []).join(", "),
   });
   const set = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
@@ -352,11 +394,13 @@ function EditModal({ lead, onClose, onSave }: { lead: any; onClose: () => void; 
           </div>
           <div><label className="block text-xs font-semibold text-ink-soft mb-1">E-mail</label><input className="input" value={f.email} onChange={(e) => set("email", e.target.value)} /></div>
           <div><label className="block text-xs font-semibold text-ink-soft mb-1">WhatsApp</label><input className="input" value={f.phone} onChange={(e) => set("phone", e.target.value)} /></div>
+          <div><label className="block text-xs font-semibold text-ink-soft mb-1">Valor do negócio (R$)</label><input className="input" type="number" min="0" step="1000" value={f.valor} onChange={(e) => set("valor", e.target.value)} placeholder="Ex.: 450000" /></div>
           <div><label className="block text-xs font-semibold text-ink-soft mb-1">Tags (separadas por vírgula)</label><input className="input" value={f.tags} onChange={(e) => set("tags", e.target.value)} placeholder="quente, investidor, 2 dorm" /></div>
           <div className="flex gap-2 pt-1">
             <button className="btn-outline flex-1" onClick={onClose}>Cancelar</button>
             <button className="btn-brand flex-1" onClick={() => onSave({
               first_name: f.first_name, last_name: f.last_name, email: f.email, phone: f.phone,
+              valor: f.valor === "" ? null : Number(f.valor),
               tags: f.tags.split(",").map((t: string) => t.trim()).filter(Boolean),
             })}>Salvar</button>
           </div>
