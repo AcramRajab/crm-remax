@@ -58,7 +58,14 @@ function EmailConfig() {
   }, []);
   async function save() {
     if (!accId) return;
-    await supabase.from("core_contas").update({ email_remetente: from.trim() || null, email_remetente_nome: nome.trim() || null, email_ativo: ativo }).eq("id", accId);
+    // Limpa barra/espaços sobrando (ex.: "contato@dominio.com/").
+    const cleanFrom = from.trim().replace(/[\s/]+$/g, "").replace(/^\s+/, "");
+    if (cleanFrom && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanFrom)) {
+      alert("O e-mail de envio parece inválido: " + cleanFrom);
+      return;
+    }
+    setFrom(cleanFrom);
+    await supabase.from("core_contas").update({ email_remetente: cleanFrom || null, email_remetente_nome: nome.trim() || null, email_ativo: ativo }).eq("id", accId);
     setSaved(true); setTimeout(() => setSaved(false), 1500);
   }
   if (loading) return <div className="card p-5 mb-5 text-sm text-ink-faint">Carregando…</div>;
