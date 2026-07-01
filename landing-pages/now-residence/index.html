@@ -181,6 +181,9 @@ body.annb-on nav#nav{top:var(--annb)}
   border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:1.25rem;line-height:1;
   cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .25s}
 .popup-close:hover{background:rgba(0,0,0,.85)}
+.popup-cap{display:flex;align-items:center;justify-content:space-between;gap:.5rem 1rem;flex-wrap:wrap;
+  background:var(--c-darker);color:#fff;padding:.75rem 1.1rem;font-size:.82rem;font-weight:600;line-height:1.2}
+.popup-cap .cap-cd{color:var(--c-accent);font-variant-numeric:tabular-nums;white-space:nowrap}
 
 /* --- MODAL "FALAR NO WHATSAPP" (captura lead antes de redirecionar) --- */
 .walead-ov{position:fixed;inset:0;z-index:9600;background:rgba(8,8,10,.85);
@@ -239,6 +242,10 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   <div class="popup-card">
     <button class="popup-close" id="popupClose" aria-label="Fechar">×</button>
     <a href="#contato" id="popupCta"><img src="assets/popup-boatshow.webp" alt="NOW Residence convida para o Marina Itajaí Boat Show 2026 — Garanta sua vaga"/></a>
+    <div class="popup-cap">
+      <span>📅 02 a 05 de julho · Stand S10</span>
+      <span class="cap-cd" id="popupCd"></span>
+    </div>
   </div>
 </div>
 
@@ -702,7 +709,21 @@ document.querySelectorAll('[data-topo]').forEach(function(el){
 (function(){
   var ov=document.getElementById("popup"); if(!ov) return;
   var END=new Date("2026-07-05T20:00:00-03:00").getTime();
+  var START=new Date("2026-07-02T09:00:00-03:00").getTime();   // abertura do evento
   if(Date.now()>END) return;                                   // evento acabou -> sem popup
+  var cd=document.getElementById("popupCd");
+  function pad(n){ return (n<10?"0":"")+n; }
+  function tickCd(){
+    if(!cd) return;
+    var now=Date.now();
+    if(now>=START){ cd.textContent="Acontecendo agora"; return; }
+    var s=Math.floor((START-now)/1000);
+    var d=Math.floor(s/86400); s-=d*86400;
+    var h=Math.floor(s/3600); s-=h*3600;
+    var m=Math.floor(s/60);
+    cd.textContent="Começa em "+d+"d "+pad(h)+"h "+pad(m)+"m";
+  }
+  tickCd(); setInterval(tickCd,30000);
   function open(){ ov.classList.add("on");                      // abre SEMPRE (toda visita)
     if(window.NOW_TRACK) NOW_TRACK("ViewContent",{channel:"popup"}); }
   function close(){ ov.classList.remove("on"); }
