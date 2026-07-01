@@ -30,6 +30,17 @@ export default {
       }
     }
 
+    // Enviar e-mail avulso do lead (corretor logado). Envia via Resend do
+    // remetente da conta; reply-to = e-mail do corretor.
+    if (url.pathname === "/api/email/send") {
+      if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+      try {
+        return await handleSendEmail(request, env);
+      } catch (err) {
+        return json({ error: "server_error", detail: String(err && err.message || err) }, 500);
+      }
+    }
+
     // Cadastro de indicador (corretor externo self-service). Público: resolve a
     // conta pelo hostname, gera o ref_code e devolve o link de indicação.
     if (url.pathname === "/api/corretor") {
@@ -219,6 +230,50 @@ async function handleCorretor(request, env, url) {
   return json({ ok: true, ref_code, link });
 }
 
+// Envia um e-mail avulso do lead (corretor logado) via Resend.
+async function handleSendEmail(request, env) {
+  if (!env.SUPABASE_SERVICE_ROLE) return json({ error: "missing_service_role" }, 500);
+  if (!env.RESEND_API_KEY) return json({ error: "sem_resend", detail: "RESEND_API_KEY não configurada no Worker." }, 400);
+
+  const authz = request.headers.get("Authorization") || "";
+  const token = authz.startsWith("Bearer ") ? authz.slice(7) : "";
+  if (!token) return json({ error: "no_token" }, 401);
+  const caller = await validateCaller(env, token);
+  if (!caller || !caller.account_id) return json({ error: "forbidden" }, 403);
+
+  let body;
+  try { body = await request.json(); } catch { return json({ error: "bad_json" }, 400); }
+  const to = String(body.to || "").trim();
+  const subject = String(body.subject || "").trim();
+  const corpo = String(body.body || "");
+  const lead_id = body.lead_id || null;
+  if (!to || !subject) return json({ error: "faltam_campos" }, 400);
+
+  const sb = supa(env);
+  const conta = (await sb(`core_contas?id=eq.${caller.account_id}&select=email_remetente,email_remetente_nome,email_ativo&limit=1`))[0] || {};
+  if (!conta.email_ativo || !conta.email_remetente) {
+    return json({ error: "email_nao_configurado", detail: "Configure o remetente em Automações e ative o e-mail." }, 400);
+  }
+
+  let provider_id = null;
+  try {
+    const res = await sendEmail(env, {
+      from: conta.email_remetente, fromName: conta.email_remetente_nome,
+      to, subject, html: corpoToHtml(corpo), replyTo: caller.email || null,
+    });
+    provider_id = (res && res.id) || null;
+  } catch (e) {
+    return json({ error: "envio_falhou", detail: String(e && e.message || e).slice(0, 300) }, 502);
+  }
+
+  if (lead_id) {
+    await sb("crm_atividades", { method: "POST", body: {
+      account_id: caller.account_id, lead_id, actor_id: null, kind: "email", detail: { to, subject, provider_id },
+    }});
+  }
+  return json({ ok: true, provider_id });
+}
+
 // Chama uma função Postgres via PostgREST RPC (service_role).
 async function rpc(env, fn, args) {
   const key = env.SUPABASE_SERVICE_ROLE;
@@ -238,12 +293,14 @@ async function validateCaller(env, token) {
     headers: { apikey: env.SUPABASE_SERVICE_ROLE, Authorization: "Bearer " + token },
   });
   if (!r.ok) return null; // token inválido/expirado -> Supabase recusa
+  const user = await r.json().catch(() => null);
   const claims = decodeJwt(token);
   if (!claims) return null;
   return {
     account_id: claims.account_id || null,
     user_role: claims.user_role || null,
     is_super_admin: !!claims.is_super_admin,
+    email: (user && user.email) || null,
   };
 }
 
@@ -334,12 +391,14 @@ function corpoToHtml(text) {
   return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#222">' + body + "</div>";
 }
 
-async function sendEmail(env, { from, fromName, to, subject, html }) {
+async function sendEmail(env, { from, fromName, to, subject, html, replyTo }) {
   const fromHeader = fromName ? `${fromName} <${from}>` : from;
+  const payload = { from: fromHeader, to: [to], subject, html };
+  if (replyTo) payload.reply_to = replyTo;
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: fromHeader, to: [to], subject, html }),
+    body: JSON.stringify(payload),
   });
   if (!r.ok) throw new Error("resend " + r.status + ": " + (await r.text()).slice(0, 200));
   return r.json();

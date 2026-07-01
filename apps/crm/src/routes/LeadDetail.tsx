@@ -28,6 +28,7 @@ function histLabel(h: HistItem, getStage: (id: string) => any, getMember: (id: s
     case "assign": return `👤 Responsável: ${getMember(d.owner_id)?.name || "definido"}`;
     case "chamada": return "📞 Ligação" + (d.nota ? ` · ${d.nota}` : "");
     case "whatsapp": return "💬 WhatsApp aberto";
+    case "email": return "✉️ E-mail: " + (d.subject || "");
     case "tarefa": return "✅ Tarefa: " + (d.title || "");
     default: return h.kind || "Evento";
   }
@@ -44,6 +45,7 @@ export default function LeadDetail() {
 
   const [emailSubj, setEmailSubj] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
   const [discardReason, setDiscardReason] = useState("");
   const [showDiscard, setShowDiscard] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -124,6 +126,31 @@ export default function LeadDetail() {
   const doReactivate = () => { setStatus(id, "active"); logActivity(id, "status", { status: "active" }).then(loadHist); };
   const doReassign = (v: string) => { reassign(id, v); logActivity(id, "assign", { owner_id: v }).then(loadHist); };
   const doLost = (reason: string) => { setStatus(id, "discarded", reason); logActivity(id, "status", { status: "discarded", reason }).then(loadHist); };
+
+  async function enviarEmail() {
+    if (!lead?.email) { alert("Este lead não tem e-mail cadastrado."); return; }
+    if (!emailSubj.trim()) return;
+    setSendingEmail(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const r = await fetch("/api/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + (session?.access_token || "") },
+      body: JSON.stringify({ lead_id: id, to: lead.email, subject: emailSubj, body: emailBody }),
+    });
+    const j = await r.json().catch(() => ({}));
+    setSendingEmail(false);
+    if (!r.ok) {
+      const map: Record<string, string> = {
+        email_nao_configurado: j.detail || "Configure o remetente em Automações → Configuração de e-mail.",
+        sem_resend: "RESEND_API_KEY ainda não está no Worker.",
+        envio_falhou: "Falha no envio: " + (j.detail || ""),
+        forbidden: "Sessão sem permissão. Entre de novo.",
+      };
+      alert(map[j.error] || j.detail || "Não consegui enviar o e-mail.");
+      return;
+    }
+    setEmailSubj(""); setEmailBody(""); setCTab("nota"); loadHist();
+  }
 
   async function addProduto() {
     const nome = prodNome.trim();
@@ -352,12 +379,13 @@ export default function LeadDetail() {
               )}
               {cTab === "email" && (
                 <div className="space-y-2">
+                  <div className="text-xs text-ink-soft">Para: <strong>{lead.email || "— (lead sem e-mail)"}</strong></div>
                   <input className="input" placeholder="Assunto" value={emailSubj} onChange={(e) => setEmailSubj(e.target.value)} />
                   <textarea className="input resize-none" rows={4} placeholder="Escrever e-mail…" value={emailBody} onChange={(e) => setEmailBody(e.target.value)} />
-                  <div className="flex items-center gap-2">
-                    <button className="btn-brand !py-1.5 text-xs opacity-60 cursor-not-allowed" disabled title="Fase 4">Enviar (em breve)</button>
-                    <span className="text-[11px] text-ink-faint">Envio via Resend chega na Fase 4.</span>
-                  </div>
+                  <button className="btn-brand !py-1.5 text-xs disabled:opacity-60"
+                    disabled={!lead.email || !emailSubj.trim() || sendingEmail} onClick={enviarEmail}>
+                    {sendingEmail ? "Enviando…" : "Enviar e-mail"}
+                  </button>
                 </div>
               )}
             </div>
