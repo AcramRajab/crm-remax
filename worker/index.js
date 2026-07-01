@@ -417,24 +417,29 @@ async function processAutomacoes(env) {
 
 async function processExecucao(env, sb, ex) {
   const now = () => new Date().toISOString();
+  const patch = (body) => sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body });
   const auto = (await sb(`crm_automacoes?id=eq.${ex.automacao_id}&select=id,ativo&limit=1`))[0];
-  if (!auto || !auto.ativo) { await sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body: { status: "cancelada", updated_at: now() } }); return; }
-  const acao = (await sb(`crm_automacao_acoes?automacao_id=eq.${ex.automacao_id}&posicao=eq.${ex.acao_idx}&select=*&limit=1`))[0];
-  if (!acao) { await sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body: { status: "concluida", updated_at: now() } }); return; }
-  const lead = (await sb(`crm_leads?id=eq.${ex.lead_id}&select=*&limit=1`))[0];
-  if (!lead) { await sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body: { status: "cancelada", updated_at: now() } }); return; }
+  if (!auto || !auto.ativo) { await patch({ status: "cancelada", updated_at: now() }); return; }
 
-  // "aguardar": agenda o próximo passo e sai (não roda mais nada agora).
-  if (acao.tipo === "aguardar") {
-    const horas = Number((acao.config || {}).horas || 0);
-    await sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body: {
-      acao_idx: ex.acao_idx + 1, proximo_at: new Date(Date.now() + horas * 3600 * 1000).toISOString(), updated_at: now(),
-    }});
-    return;
+  // Roda as ações em sequência até acabar ou bater num "aguardar".
+  let idx = ex.acao_idx;
+  for (let n = 0; n < 50; n++) {
+    const acao = (await sb(`crm_automacao_acoes?automacao_id=eq.${ex.automacao_id}&posicao=eq.${idx}&select=*&limit=1`))[0];
+    if (!acao) { await patch({ status: "concluida", acao_idx: idx, updated_at: now() }); return; }
+
+    if (acao.tipo === "aguardar") {
+      const horas = Number((acao.config || {}).horas || 0);
+      await patch({ acao_idx: idx + 1, proximo_at: new Date(Date.now() + horas * 3600 * 1000).toISOString(), updated_at: now() });
+      return;
+    }
+
+    const lead = (await sb(`crm_leads?id=eq.${ex.lead_id}&select=*&limit=1`))[0];
+    if (!lead) { await patch({ status: "cancelada", updated_at: now() }); return; }
+
+    await executeAcao(env, sb, ex, acao, lead);
+    idx += 1;
+    await patch({ acao_idx: idx, proximo_at: now(), updated_at: now() });   // salva progresso
   }
-
-  await executeAcao(env, sb, ex, acao, lead);
-  await sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body: { acao_idx: ex.acao_idx + 1, proximo_at: now(), updated_at: now() } });
 }
 
 async function executeAcao(env, sb, ex, acao, lead) {
