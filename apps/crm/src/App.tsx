@@ -10,6 +10,7 @@ import Empreendimentos from "./routes/Empreendimentos";
 import Leads from "./routes/Leads";
 import Config from "./routes/Config";
 import Integracoes from "./routes/Integracoes";
+import Automacoes from "./routes/Automacoes";
 import Hoje from "./routes/Hoje";
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/leads" element={<Leads />} />
         <Route path="/leads/:id" element={<LeadDetail />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/automacoes" element={<Automacoes />} />
         <Route path="/empreendimentos" element={<Empreendimentos />} />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/config" element={<Config />} />

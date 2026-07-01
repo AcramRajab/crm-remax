@@ -43,6 +43,11 @@ export default {
 
     // Demais caminhos: assets (run_worker_first manda só /api/* pra cá).
     return env.ASSETS.fetch(request);
+  },
+
+  // Cron (ver wrangler.toml [triggers]): processa a fila de sequências de e-mail.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(processSequences(env));
   }
 };
 
@@ -249,6 +254,95 @@ function decodeJwt(token) {
     const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
     return JSON.parse(atob(b64 + pad));
   } catch { return null; }
+}
+
+// ===================== MOTOR DE SEQUÊNCIAS (cron) =====================
+// Percorre a fila de inscrições vencidas e envia o próximo e-mail via Resend.
+// Só envia se a conta tiver e-mail ativo/remetente e o Worker tiver RESEND_API_KEY.
+async function processSequences(env) {
+  if (!env.SUPABASE_SERVICE_ROLE) return;
+  const sb = supa(env);
+  const nowIso = new Date().toISOString();
+  const fila = await sb(`crm_sequencia_inscricoes?status=eq.ativa&proximo_envio_at=lte.${encodeURIComponent(nowIso)}&select=*&order=proximo_envio_at.asc&limit=50`);
+  for (const ins of fila) {
+    try { await processInscricao(env, sb, ins); }
+    catch (e) { console.error("seq inscricao", ins.id, String(e && e.message || e)); }
+  }
+}
+
+async function processInscricao(env, sb, ins) {
+  const now = () => new Date().toISOString();
+  const seq = (await sb(`crm_sequencias?id=eq.${ins.sequencia_id}&select=id,ativo&limit=1`))[0];
+  if (!seq || !seq.ativo) {
+    await sb(`crm_sequencia_inscricoes?id=eq.${ins.id}`, { method: "PATCH", body: { status: "cancelada", updated_at: now() } });
+    return;
+  }
+  const passo = (await sb(`crm_sequencia_passos?sequencia_id=eq.${ins.sequencia_id}&posicao=eq.${ins.passo_idx}&select=*&limit=1`))[0];
+  if (!passo) {
+    await sb(`crm_sequencia_inscricoes?id=eq.${ins.id}`, { method: "PATCH", body: { status: "concluida", updated_at: now() } });
+    return;
+  }
+  const lead = (await sb(`crm_leads?id=eq.${ins.lead_id}&select=id,email,first_name,last_name&limit=1`))[0];
+  const conta = (await sb(`core_contas?id=eq.${ins.account_id}&select=email_remetente,email_remetente_nome,email_ativo&limit=1`))[0] || {};
+
+  // Lead sem e-mail: pula este passo (avança sem enviar).
+  if (!lead || !lead.email) { await advanceInscricao(sb, ins); return; }
+  // Sem configuração de envio: NÃO avança (fica na fila até configurar). Nada fake.
+  if (!env.RESEND_API_KEY || !conta.email_ativo || !conta.email_remetente) return;
+
+  const first = (lead.first_name || "").trim();
+  const full = [lead.first_name, lead.last_name].filter(Boolean).join(" ").trim();
+  const vars = { "{{primeiro_nome}}": first || "tudo bem", "{{nome}}": full || first || "" };
+  const assunto = renderTpl(passo.assunto, vars);
+  const html = corpoToHtml(renderTpl(passo.corpo, vars));
+
+  let status = "enviado", provider_id = null, erro = null;
+  try {
+    const res = await sendEmail(env, { from: conta.email_remetente, fromName: conta.email_remetente_nome, to: lead.email, subject: assunto, html });
+    provider_id = (res && res.id) || null;
+  } catch (e) { status = "falhou"; erro = String(e && e.message || e).slice(0, 300); }
+
+  await sb("crm_sequencia_envios", { method: "POST", body: {
+    account_id: ins.account_id, inscricao_id: ins.id, sequencia_id: ins.sequencia_id,
+    passo_id: passo.id, lead_id: ins.lead_id, assunto, status, provider_id, erro
+  }});
+  await advanceInscricao(sb, ins);
+}
+
+async function advanceInscricao(sb, ins) {
+  const nextPos = ins.passo_idx + 1;
+  const next = (await sb(`crm_sequencia_passos?sequencia_id=eq.${ins.sequencia_id}&posicao=eq.${nextPos}&select=delay_horas&limit=1`))[0];
+  const patch = { updated_at: new Date().toISOString() };
+  if (next) {
+    patch.passo_idx = nextPos;
+    patch.proximo_envio_at = new Date(Date.now() + (next.delay_horas || 0) * 3600 * 1000).toISOString();
+  } else {
+    patch.status = "concluida";
+  }
+  await sb(`crm_sequencia_inscricoes?id=eq.${ins.id}`, { method: "PATCH", body: patch });
+}
+
+function renderTpl(tpl, vars) {
+  let s = String(tpl || "");
+  for (const k in vars) s = s.split(k).join(vars[k]);
+  return s;
+}
+
+function corpoToHtml(text) {
+  const esc = String(text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const body = esc.replace(/\\n/g, "<br>").replace(/\n/g, "<br>");
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#222">' + body + "</div>";
+}
+
+async function sendEmail(env, { from, fromName, to, subject, html }) {
+  const fromHeader = fromName ? `${fromName} <${from}>` : from;
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: fromHeader, to: [to], subject, html }),
+  });
+  if (!r.ok) throw new Error("resend " + r.status + ": " + (await r.text()).slice(0, 200));
+  return r.json();
 }
 
 // Cliente REST do Supabase com service_role (server-side; bypassa RLS).

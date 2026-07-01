@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   KanbanSquare, Users, BarChart3, Building2, Settings, CalendarCheck,
   Search, Bell, ChevronDown, Plus, UserCog, Plug, Menu, X, LogOut,
-  MessageCircle, UserPlus, CheckSquare,
+  MessageCircle, UserPlus, CheckSquare, Zap,
 } from "lucide-react";
 import { account } from "../lib/tenant";
 import { users } from "../lib/mock";
@@ -18,6 +18,7 @@ const nav = [
   { to: "/funil", label: "Funil", icon: KanbanSquare },
   { to: "/leads", label: "Leads", icon: Users },
   { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
+  { to: "/automacoes", label: "Automações", icon: Zap },
   { to: "/empreendimentos", label: "Empreendimentos", icon: Building2 },
 ];
 
