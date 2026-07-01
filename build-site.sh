@@ -19,6 +19,11 @@ cp -r apps/crm/dist _site
 echo "==> copiando landing pages (uma por slug)"
 for dir in landing-pages/*/; do
   slug="$(basename "$dir")"
+  # Só é LP se tiver index.html — evita publicar pastas de material solto.
+  if [ ! -f "${dir}index.html" ]; then
+    echo "    - pulando '$slug' (sem index.html — não é LP)"
+    continue
+  fi
   cp -r "$dir" "_site/$slug"
   echo "    + /$slug"
 done
