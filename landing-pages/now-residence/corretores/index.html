@@ -150,7 +150,11 @@ img{display:block;max-width:100%}
         }
         showResult(res.j.link, data.nome);
       })
-      .catch(function(){ msg.textContent="Falha de rede. Tente de novo."; msg.style.color="#f87171"; btn.disabled=false; });
+      .catch(function(){
+        var local=/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname);
+        msg.textContent=local?"O formulário só funciona no site publicado — o preview local não tem a API.":"Falha de rede. Tente de novo.";
+        msg.style.color="#f87171"; btn.disabled=false;
+      });
   });
 
   function showResult(link, nome){
