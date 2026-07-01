@@ -30,6 +30,17 @@ export default {
       }
     }
 
+    // Cadastro de indicador (corretor externo self-service). Público: resolve a
+    // conta pelo hostname, gera o ref_code e devolve o link de indicação.
+    if (url.pathname === "/api/corretor") {
+      if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+      try {
+        return await handleCorretor(request, env, url);
+      } catch (err) {
+        return json({ error: "server_error", detail: String(err && err.message || err) }, 500);
+      }
+    }
+
     // Demais caminhos: assets (run_worker_first manda só /api/* pra cá).
     return env.ASSETS.fetch(request);
   }
@@ -58,14 +69,23 @@ async function handleLead(request, env, url) {
     if (emps.length) empreendimento_id = emps[0].id;
   }
 
-  // 3) Atribuição por corretor (?c=<ref_code> no link de divulgação).
-  //    Resolve o ref_code DENTRO da conta -> owner_id (auth.users). Se não vier
-  //    ou não casar, owner_id fica nulo e a distribuição normal assume depois.
+  // 3) Atribuição por ?c=<ref_code> no link de divulgação. Duas origens:
+  //    - EQUIPE interna (core_usuarios) -> vira owner_id do lead (ele trabalha no CRM).
+  //    - INDICADOR externo (crm_indicadores) -> registra quem indicou no journey
+  //      (parceiro de outra imobiliária; o lead segue a distribuição do time).
+  //    Tudo em try/catch: rastreio nunca pode derrubar a captura do lead.
   const ref = String(data.corretor || data.c || "").trim().toLowerCase();
   let owner_id = null;
+  let indicador = null;
   if (ref) {
-    const us = await sb(`core_usuarios?account_id=eq.${account_id}&ref_code=eq.${encodeURIComponent(ref)}&select=user_id&limit=1`);
-    if (us.length) owner_id = us[0].user_id;
+    try {
+      const us = await sb(`core_usuarios?account_id=eq.${account_id}&ref_code=eq.${encodeURIComponent(ref)}&select=user_id&limit=1`);
+      if (us.length) owner_id = us[0].user_id;
+      else {
+        const ind = await sb(`crm_indicadores?account_id=eq.${account_id}&ref_code=eq.${encodeURIComponent(ref)}&select=id,nome,imobiliaria,telefone&limit=1`);
+        if (ind.length) indicador = ind[0];
+      }
+    } catch (e) { /* coluna/tabela ainda não migrada: ignora e segue */ }
   }
 
   // 4) Lead.
@@ -74,6 +94,13 @@ async function handleLead(request, env, url) {
   const first_name = parts.shift() || null;
   const last_name = parts.length ? parts.join(" ") : null;
 
+  const journey = {
+    channel: "form",
+    interesse: data.interesse || null,
+    corretor_ref: ref || null,
+    indicador: indicador ? { nome: indicador.nome, imobiliaria: indicador.imobiliaria, telefone: indicador.telefone } : null
+  };
+
   await sb("crm_leads", { method: "POST", body: {
     account_id, empreendimento_id,
     email: data.email || null,
@@ -81,7 +108,7 @@ async function handleLead(request, env, url) {
     first_name, last_name,
     origin: "inbound",
     owner_id,
-    journey: { channel: "form", interesse: data.interesse || null, corretor_ref: ref || null }
+    journey
   }});
 
   // 5) Evento Lead (também alimenta track_eventos).
@@ -145,6 +172,57 @@ async function handleInvite(request, env) {
   }
 
   return json({ ok: true, email, role, temp_password: tempPassword });
+}
+
+// Cadastro de indicador (corretor externo). Público — a conta vem do HOSTNAME.
+// Gera o ref_code e devolve o link de indicação pra LP oficial.
+async function handleCorretor(request, env, url) {
+  if (!env.SUPABASE_SERVICE_ROLE) return json({ error: "missing_service_role" }, 500);
+
+  let data;
+  try { data = await request.json(); } catch { return json({ error: "bad_json" }, 400); }
+
+  const nome = String(data.nome || "").trim();
+  const telefone = String(data.telefone || "").trim();
+  const imobiliaria = String(data.imobiliaria || "").trim();
+  if (nome.length < 2) return json({ error: "nome_obrigatorio" }, 400);
+
+  const sb = supa(env);
+  const host = url.hostname;
+  const slug = String(data.slug || "").trim();
+
+  // Conta pelo HOSTNAME (não confia no browser).
+  const contas = await sb(`core_contas?custom_domain=eq.${encodeURIComponent(host)}&select=id&limit=1`);
+  if (!contas.length) return json({ error: "conta_nao_encontrada", host }, 404);
+  const account_id = contas[0].id;
+
+  let empreendimento_id = null;
+  if (slug) {
+    const emps = await sb(`core_empreendimentos?account_id=eq.${account_id}&slug=eq.${encodeURIComponent(slug)}&select=id&limit=1`);
+    if (emps.length) empreendimento_id = emps[0].id;
+  }
+
+  // Gera o ref_code único (equipe + indicadores) e insere — tudo na RPC (atômico).
+  const ref_code = await rpc(env, "criar_indicador", {
+    p_account: account_id, p_emp: empreendimento_id,
+    p_nome: nome, p_telefone: telefone || null, p_imobiliaria: imobiliaria || null
+  });
+
+  const base = slug ? `/${slug}` : "";
+  const link = `https://${host}${base}?c=${ref_code}`;
+  return json({ ok: true, ref_code, link });
+}
+
+// Chama uma função Postgres via PostgREST RPC (service_role).
+async function rpc(env, fn, args) {
+  const key = env.SUPABASE_SERVICE_ROLE;
+  const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
+    method: "POST",
+    headers: { apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
+  if (!r.ok) throw new Error("rpc " + fn + " " + r.status + ": " + (await r.text()).slice(0, 200));
+  return r.json();
 }
 
 // Valida o access token do admin no Supabase (assinatura + expiração) e lê os
