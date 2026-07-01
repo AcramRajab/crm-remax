@@ -94,8 +94,9 @@ async function handleLead(request, env, url) {
   const first_name = parts.shift() || null;
   const last_name = parts.length ? parts.join(" ") : null;
 
+  const channel = String(data.channel || "form");
   const journey = {
-    channel: "form",
+    channel,
     interesse: data.interesse || null,
     corretor_ref: ref || null,
     indicador: indicador ? { nome: indicador.nome, imobiliaria: indicador.imobiliaria, telefone: indicador.telefone } : null
@@ -117,7 +118,7 @@ async function handleLead(request, env, url) {
     event_id: crypto.randomUUID(),
     event_name: "Lead",
     page_url: data.page_url || null,
-    properties: { channel: "form", interesse: data.interesse || null, corretor_ref: ref || null }
+    properties: { channel, interesse: data.interesse || null, corretor_ref: ref || null }
   }});
 
   return json({ ok: true });

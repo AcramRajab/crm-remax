@@ -182,6 +182,20 @@ body.annb-on nav#nav{top:var(--annb)}
   cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .25s}
 .popup-close:hover{background:rgba(0,0,0,.85)}
 
+/* --- MODAL "FALAR NO WHATSAPP" (captura lead antes de redirecionar) --- */
+.walead-ov{position:fixed;inset:0;z-index:9600;background:rgba(8,8,10,.85);
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;padding:1.2rem;
+  opacity:0;visibility:hidden;transition:opacity .3s ease}
+.walead-ov.on{opacity:1;visibility:visible}
+.walead-card{position:relative;width:min(430px,94vw);background:var(--c-card);
+  border:1px solid var(--c-line);border-radius:8px;padding:1.7rem 1.5rem 1.5rem;
+  box-shadow:0 30px 80px rgba(0,0,0,.6);transform:translateY(14px) scale(.98);
+  transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+.walead-ov.on .walead-card{transform:none}
+.btn-wa{background:#25D366;color:#fff}
+.btn-wa:hover{filter:brightness(1.06);transform:translateY(-2px)}
+
 /* --- BOAT SHOW: SEÇÃO DE CONDIÇÕES --- */
 .bs-tag{display:inline-flex;align-items:center;gap:.5rem;background:var(--c-accent);color:#fff;
   font-weight:700;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;padding:.4rem .85rem;border-radius:3px}
@@ -578,6 +592,25 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </div>
 </footer>
 
+<!-- MODAL: FALAR NO WHATSAPP (captura antes de redirecionar) -->
+<div class="walead-ov" id="waLead" role="dialog" aria-label="Falar no WhatsApp">
+  <div class="walead-card">
+    <button class="popup-close" id="waLeadClose" aria-label="Fechar">×</button>
+    <div class="flex items-center gap-2 mb-1">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#25D366"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zM6.597 20.13c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.515 5.26l-.999 3.648 3.743-.982zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413z"/></svg>
+      <h3 class="display text-2xl">Falar no WhatsApp</h3>
+    </div>
+    <p class="text-sm text-gray-400 font-light mb-4">Deixe seus dados e continuamos o atendimento no WhatsApp.</p>
+    <form id="waLeadForm" class="grid gap-3">
+      <input class="field" name="nome" placeholder="Seu nome" required/>
+      <input class="field" name="email" type="email" placeholder="Seu melhor e-mail" required/>
+      <input class="field" name="telefone" type="tel" placeholder="WhatsApp (DDD + número)" required/>
+      <button type="submit" class="btn btn-wa w-full justify-center mt-1">Ir para o WhatsApp</button>
+      <p id="waLeadMsg" class="text-xs text-gray-500 text-center">Seus dados são tratados conforme a LGPD.</p>
+    </form>
+  </div>
+</div>
+
 <!-- WHATSAPP FLOAT -->
 <a class="wa-float" id="waFloat" href="#" aria-label="WhatsApp">
   <svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zM6.597 20.13c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.515 5.26l-.999 3.648 3.743-.982zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.247-.694.247-1.289.173-1.413z"/></svg>
@@ -628,16 +661,40 @@ document.querySelectorAll('[data-topo]').forEach(function(el){
   window.addEventListener("resize",function(){ if(!bar.hidden) setH(); });
 })();
 
-/* ===================== WHATSAPP ===================== */
+/* ============= WHATSAPP (captura nome/e-mail/telefone antes de redirecionar) ============= */
 (function(){
   var T=window.NOW_TRACKING||{};
   var cfg=T.whatsapp||{number:"5547992012292",message:"Olá! Tenho interesse no NOW Residence."};
   var msg=cfg.message + (T.corretor ? " (corretor: "+T.corretor+")" : "");
   var url="https://wa.me/"+cfg.number+"?text="+encodeURIComponent(msg);
+  var ov=document.getElementById("waLead");
+  var form=document.getElementById("waLeadForm");
+  var fmsg=document.getElementById("waLeadMsg");
+  var src="whatsapp";
+  function openM(s){ src=s||"whatsapp"; ov.classList.add("on");
+    setTimeout(function(){ var n=form.querySelector("[name=nome]"); if(n) n.focus(); },120); }
+  function closeM(){ ov.classList.remove("on"); }
+
   ["waBtn","waBtnBoat","waFloat"].forEach(function(id){
     var a=document.getElementById(id); if(!a)return;
-    a.href=url; a.target="_blank"; a.rel="noopener";
-    a.addEventListener("click",function(){ if(window.NOW_TRACK) NOW_TRACK("Lead",{channel:"whatsapp",source:id,corretor:T.corretor||null}); });
+    a.href=url; a.rel="noopener";                          // fallback se o JS falhar
+    a.addEventListener("click",function(e){ e.preventDefault(); openM(id); });
+  });
+  document.getElementById("waLeadClose").addEventListener("click",closeM);
+  ov.addEventListener("click",function(e){ if(e.target===ov) closeM(); });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape" && ov.classList.contains("on")) closeM(); });
+
+  form.addEventListener("submit",function(e){
+    e.preventDefault();
+    var data=Object.fromEntries(new FormData(form).entries());
+    if(window.NOW_TRACK) NOW_TRACK("Lead",Object.assign({channel:"whatsapp",source:src,corretor:T.corretor||null},data));
+    if(fmsg){ fmsg.textContent="Redirecionando pro WhatsApp…"; fmsg.style.color="#25D366"; }
+    var payload=Object.assign({slug:T.slug,corretor:T.corretor||null,channel:"whatsapp",page_url:location.href},data);
+    // keepalive: o POST completa mesmo com a navegação pro WhatsApp em seguida.
+    fetch("/api/lead",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload),keepalive:true})
+      .catch(function(){})
+      .finally(function(){ window.location.href=url; });
   });
 })();
 
