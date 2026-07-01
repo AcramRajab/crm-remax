@@ -35,10 +35,11 @@ function histLabel(h: HistItem, getStage: (id: string) => any, getMember: (id: s
 import { useStore } from "../lib/store";
 import { timeAgo, dateLabel, scoreColor } from "../lib/format";
 import { Avatar } from "../components/Avatar";
+import type { CampoDef } from "../lib/types";
 
 export default function LeadDetail() {
   const { id = "" } = useParams();
-  const { getLead, getEmp, getMember, getStage, stages, members, reassign, moveStage, setStatus, updateLead, logActivity, tasks: allTasks, toggleTask, addTask } = useStore();
+  const { getLead, getEmp, getMember, getStage, stages, members, campos, reassign, moveStage, setStatus, updateLead, logActivity, tasks: allTasks, toggleTask, addTask } = useStore();
   const lead = getLead(id);
 
   const [emailSubj, setEmailSubj] = useState("");
@@ -66,6 +67,17 @@ export default function LeadDetail() {
     setHist(items);
   }, [id]);
   useEffect(() => { loadHist(); }, [loadHist]);
+
+  // Produtos do lead (crm_lead_produtos).
+  const [produtos, setProdutos] = useState<{ id: string; nome: string; quantidade: number; valor_unit: number }[]>([]);
+  const [prodNome, setProdNome] = useState("");
+  const [prodValor, setProdValor] = useState("");
+  const loadProdutos = useCallback(async () => {
+    const { data } = await supabase.from("crm_lead_produtos").select("id, nome, quantidade, valor_unit").eq("lead_id", id).order("created_at", { ascending: true });
+    setProdutos((data as any) || []);
+  }, [id]);
+  useEffect(() => { loadProdutos(); }, [loadProdutos]);
+  const produtosTotal = produtos.reduce((s, p) => s + Number(p.quantidade || 1) * Number(p.valor_unit || 0), 0);
 
   if (!lead) {
     return (
@@ -112,6 +124,18 @@ export default function LeadDetail() {
   const doReactivate = () => { setStatus(id, "active"); logActivity(id, "status", { status: "active" }).then(loadHist); };
   const doReassign = (v: string) => { reassign(id, v); logActivity(id, "assign", { owner_id: v }).then(loadHist); };
   const doLost = (reason: string) => { setStatus(id, "discarded", reason); logActivity(id, "status", { status: "discarded", reason }).then(loadHist); };
+
+  async function addProduto() {
+    const nome = prodNome.trim();
+    const valor = Number(prodValor) || 0;
+    if (!nome || !lead) return;
+    await supabase.from("crm_lead_produtos").insert({ account_id: lead.account_id, lead_id: id, nome, quantidade: 1, valor_unit: valor });
+    setProdNome(""); setProdValor(""); loadProdutos();
+  }
+  async function removeProduto(pid: string) {
+    await supabase.from("crm_lead_produtos").delete().eq("id", pid);
+    loadProdutos();
+  }
 
   return (
     <div className="p-6 max-w-[1200px] mx-auto">
@@ -414,6 +438,55 @@ export default function LeadDetail() {
             </div>
           </section>
 
+          {/* Detalhes (campos personalizados) */}
+          {campos.length > 0 && (
+            <section className="card p-5">
+              <h2 className="font-semibold text-ink mb-3 text-sm uppercase tracking-wide text-ink-faint">Detalhes</h2>
+              <div className="space-y-3">
+                {campos.map((c) => (
+                  <div key={c.id}>
+                    <label className="block text-xs font-semibold text-ink-soft mb-1">{c.nome}</label>
+                    <CampoInput campo={c} value={lead.campos?.[c.id] ?? ""}
+                      onChange={(v) => updateLead(id, { campos: { ...(lead.campos || {}), [c.id]: v } })} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Produtos */}
+          <section className="card p-5">
+            <h2 className="font-semibold text-ink mb-3 text-sm uppercase tracking-wide text-ink-faint">Produtos</h2>
+            <div className="space-y-2">
+              {produtos.map((p) => (
+                <div key={p.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-ink truncate">{p.nome}</span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <span className="text-ink-soft">{brl(Number(p.quantidade || 1) * Number(p.valor_unit || 0))}</span>
+                    <button className="text-rose-500 hover:text-rose-600" onClick={() => removeProduto(p.id)} title="Remover"><Trash2 size={13} /></button>
+                  </span>
+                </div>
+              ))}
+              {produtos.length === 0 && <p className="text-sm text-ink-faint">Nenhum produto.</p>}
+            </div>
+            {produtos.length > 0 && (
+              <div className="flex items-center justify-between mt-3 pt-2 border-t border-line text-sm">
+                <span className="text-ink-faint">Total</span>
+                <span className="font-semibold text-emerald-600">{brl(produtosTotal)}</span>
+              </div>
+            )}
+            {produtos.length > 0 && (
+              <button className="btn-outline w-full mt-2 !py-1.5 text-xs" onClick={() => updateLead(id, { valor: produtosTotal })}>
+                Usar total como valor do negócio
+              </button>
+            )}
+            <div className="flex items-center gap-2 mt-3">
+              <input className="input !py-1.5 text-sm flex-1" placeholder="Produto/unidade" value={prodNome} onChange={(e) => setProdNome(e.target.value)} />
+              <input className="input !py-1.5 text-sm w-24" type="number" placeholder="R$" value={prodValor} onChange={(e) => setProdValor(e.target.value)} />
+              <button className="btn-brand !px-3 !py-1.5" onClick={addProduto} disabled={!prodNome.trim()}><Plus size={15} /></button>
+            </div>
+          </section>
+
         </div>
       </div>
     </div>
@@ -471,6 +544,24 @@ function EditModal({ lead, onClose, onSave }: { lead: any; onClose: () => void; 
         </div>
       </div>
     </div>
+  );
+}
+
+function CampoInput({ campo, value, onChange }: { campo: CampoDef; value: any; onChange: (v: string) => void }) {
+  const [v, setV] = useState<string>(value ?? "");
+  useEffect(() => { setV(value ?? ""); }, [value]);
+  if (campo.tipo === "select") {
+    return (
+      <select className="input" value={v} onChange={(e) => { setV(e.target.value); onChange(e.target.value); }}>
+        <option value="">—</option>
+        {campo.opcoes.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+  }
+  return (
+    <input className="input" type={campo.tipo === "number" ? "number" : campo.tipo === "date" ? "date" : "text"}
+      value={v} onChange={(e) => setV(e.target.value)}
+      onBlur={() => { if (v !== (value ?? "")) onChange(v); }} />
   );
 }
 

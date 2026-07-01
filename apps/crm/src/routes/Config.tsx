@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Palette, Shuffle, Users as UsersIcon, KeyRound,
-  Check, Info, Plus, Shield, X, Loader2, Copy, Link2,
+  Palette, Shuffle, Users as UsersIcon, KeyRound, SlidersHorizontal,
+  Check, Info, Plus, Shield, X, Loader2, Copy, Link2, Trash2,
 } from "lucide-react";
 import { account } from "../lib/tenant";
 import { supabase } from "../lib/supabase";
@@ -27,12 +27,13 @@ interface Member {
 // do CRM (LPs e CRM moram no mesmo Worker) — não depende de domínio hardcodado.
 const CAMPANHA_SLUG = "now-residence";
 
-type Tab = "marca" | "distribuicao" | "equipe" | "credenciais";
+type Tab = "marca" | "distribuicao" | "equipe" | "campos" | "credenciais";
 
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "marca", label: "Marca (white-label)", icon: Palette },
   { id: "distribuicao", label: "Distribuição", icon: Shuffle },
   { id: "equipe", label: "Equipe & papéis", icon: UsersIcon },
+  { id: "campos", label: "Campos personalizados", icon: SlidersHorizontal },
   { id: "credenciais", label: "Credenciais", icon: KeyRound },
 ];
 
@@ -62,6 +63,7 @@ export default function Config() {
       {tab === "marca" && <Marca />}
       {tab === "distribuicao" && <Distribuicao />}
       {tab === "equipe" && <Equipe />}
+      {tab === "campos" && <Campos />}
       {tab === "credenciais" && <Credenciais />}
     </div>
   );
@@ -317,6 +319,70 @@ function InviteModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
         )}
       </div>
     </div>
+  );
+}
+
+/* ---------------- Campos personalizados ---------------- */
+const TIPO_LABEL: Record<string, string> = { text: "Texto", number: "Número", date: "Data", select: "Lista" };
+
+function Campos() {
+  const [accId, setAccId] = useState<string | null>(null);
+  const [campos, setCampos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [nome, setNome] = useState("");
+  const [tipo, setTipo] = useState("text");
+  const [opcoes, setOpcoes] = useState("");
+
+  const load = useCallback(async () => {
+    const { data: conta } = await supabase.from("core_contas").select("id").limit(1).single();
+    setAccId(conta?.id ?? null);
+    const { data } = await supabase.from("crm_campos").select("id, nome, tipo, opcoes, posicao").order("posicao", { ascending: true });
+    setCampos(data || []); setLoading(false);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  async function add() {
+    if (!accId || !nome.trim()) return;
+    const ops = tipo === "select" ? opcoes.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    await supabase.from("crm_campos").insert({ account_id: accId, nome: nome.trim(), tipo, opcoes: ops, posicao: campos.length });
+    setNome(""); setOpcoes(""); setTipo("text"); load();
+  }
+  async function remove(cid: string) {
+    if (!confirm("Remover este campo? Os valores já preenchidos nos leads deixam de aparecer.")) return;
+    await supabase.from("crm_campos").delete().eq("id", cid); load();
+  }
+
+  return (
+    <Section title="Campos personalizados" desc="Campos extras que aparecem em cada lead (bloco Detalhes). Ex.: necessidade, como conheceu, prazo de compra.">
+      {loading ? <p className="text-sm text-ink-faint">Carregando…</p> : (
+        <div className="space-y-2 mb-4">
+          {campos.map((c) => (
+            <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-line">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-ink">{c.nome}</div>
+                <div className="text-xs text-ink-faint">{TIPO_LABEL[c.tipo] || c.tipo}{c.tipo === "select" && Array.isArray(c.opcoes) && c.opcoes.length ? ` · ${c.opcoes.join(", ")}` : ""}</div>
+              </div>
+              <button className="text-rose-500 hover:text-rose-600 shrink-0" onClick={() => remove(c.id)} title="Remover"><Trash2 size={15} /></button>
+            </div>
+          ))}
+          {campos.length === 0 && <p className="text-sm text-ink-faint">Nenhum campo ainda. Crie o primeiro abaixo.</p>}
+        </div>
+      )}
+      <div className="grid sm:grid-cols-3 gap-2">
+        <input className="input" placeholder="Nome do campo" value={nome} onChange={(e) => setNome(e.target.value)} />
+        <select className="input" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          <option value="text">Texto</option>
+          <option value="number">Número</option>
+          <option value="date">Data</option>
+          <option value="select">Lista (select)</option>
+        </select>
+        <button className="btn-brand" onClick={add} disabled={!nome.trim()}><Plus size={16} /> Adicionar</button>
+      </div>
+      {tipo === "select" && (
+        <input className="input mt-2" placeholder="Opções separadas por vírgula (ex.: Sim, Não, Talvez)" value={opcoes} onChange={(e) => setOpcoes(e.target.value)} />
+      )}
+      <p className="text-[11px] text-ink-faint mt-2">Novos campos aparecem no lead após recarregar.</p>
+    </Section>
   );
 }
 

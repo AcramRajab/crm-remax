@@ -5,7 +5,7 @@ import { createContext, useContext, useState, ReactNode, useCallback, useEffect 
 import { supabase } from "./supabase";
 import { useAuth } from "./auth";
 import { account } from "./tenant";
-import type { Lead, LeadStatus, Task, FunnelStage } from "./types";
+import type { Lead, LeadStatus, Task, FunnelStage, CampoDef } from "./types";
 
 // Membro real da conta (core_usuarios) — usado nos seletores de responsável.
 export interface Member { id: string; name: string; role: string }
@@ -38,6 +38,7 @@ interface Store {
   getStage: (id: string) => FunnelStage | undefined;
   members: Member[];
   getMember: (id: string) => Member | undefined;
+  campos: CampoDef[];
   addLead: (input: NewLeadInput) => Lead;
   updateLead: (id: string, patch: Partial<Lead>) => void;
   logActivity: (leadId: string, kind: string, detail?: any) => Promise<void>;
@@ -96,6 +97,7 @@ function mapLead(r: any): Lead {
     channel: j.channel || null,
     corretor_ref: j.corretor_ref || null,
     indicador: j.indicador || null,
+    campos: r.campos && typeof r.campos === "object" ? r.campos : {},
   };
 }
 
@@ -104,13 +106,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [emps, setEmps] = useState<Emp[]>([]);
   const [stages, setStages] = useState<FunnelStage[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [campos, setCampos] = useState<CampoDef[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
 
   const reload = useCallback(async () => {
     // Leads + empreendimentos REAIS, ambos isolados por RLS na conta logada.
-    const [leadsRes, empsRes, stagesRes, membersRes, tasksRes] = await Promise.all([
+    const [leadsRes, empsRes, stagesRes, membersRes, tasksRes, camposRes] = await Promise.all([
       supabase.from("crm_leads").select("*").order("created_at", { ascending: false }),
       supabase
         .from("core_empreendimentos")
@@ -119,6 +122,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       supabase.from("crm_funil_etapas").select("id, name, phase, position").order("position", { ascending: true }),
       supabase.from("core_usuarios").select("user_id, name, email, role").order("created_at", { ascending: true }),
       supabase.from("crm_tarefas").select("id, lead_id, title, due_at, done").order("due_at", { ascending: true }),
+      supabase.from("crm_campos").select("id, nome, tipo, opcoes, posicao").order("posicao", { ascending: true }),
     ]);
     if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data.map(mapLead));
     if (!empsRes.error && empsRes.data) setEmps(empsRes.data as Emp[]);
@@ -131,6 +135,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })));
     }
     if (!tasksRes.error && tasksRes.data) setTasks(tasksRes.data as TaskRow[]);
+    if (!camposRes.error && camposRes.data) {
+      setCampos(camposRes.data.map((c: any) => ({ ...c, opcoes: Array.isArray(c.opcoes) ? c.opcoes : [] })) as CampoDef[]);
+    }
     setLoading(false);
   }, []);
 
@@ -179,7 +186,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const DB_COLS = new Set([
     "valor", "first_name", "last_name", "email", "phone",
     "persona", "score", "status", "discard_reason", "followup_count",
-    "stage_id", "owner_id",
+    "stage_id", "owner_id", "campos",
   ]);
   const UUID_COLS = new Set(["stage_id", "owner_id"]);
 
@@ -235,7 +242,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [leads]);
 
   return (
-    <Ctx.Provider value={{ leads, loading, reload, getLead, emps, getEmp, stages, getStage, members, getMember, addLead, updateLead, logActivity, moveStage, reassign, setStatus, tasks, toggleTask, addTask }}>
+    <Ctx.Provider value={{ leads, loading, reload, getLead, emps, getEmp, stages, getStage, members, getMember, campos, addLead, updateLead, logActivity, moveStage, reassign, setStatus, tasks, toggleTask, addTask }}>
       {children}
     </Ctx.Provider>
   );

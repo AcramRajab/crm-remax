@@ -77,6 +77,16 @@ export interface Lead {
   channel?: string | null;              // form | whatsapp
   corretor_ref?: string | null;         // código do ?c= no link
   indicador?: { nome?: string | null; imobiliaria?: string | null; telefone?: string | null } | null;
+  campos?: Record<string, any>;         // valores dos campos personalizados
+}
+
+// Definição de campo personalizado (crm_campos).
+export interface CampoDef {
+  id: string;
+  nome: string;
+  tipo: "text" | "number" | "date" | "select";
+  opcoes: string[];
+  posicao: number;
 }
 
 export interface Dossie {
