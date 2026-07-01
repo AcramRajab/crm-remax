@@ -646,8 +646,7 @@ document.querySelectorAll('[data-topo]').forEach(function(el){
   var ov=document.getElementById("popup"); if(!ov) return;
   var END=new Date("2026-07-05T20:00:00-03:00").getTime();
   if(Date.now()>END) return;                                   // evento acabou -> sem popup
-  try{ if(sessionStorage.getItem("popup_seen")==="1") return; }catch(e){}
-  function open(){ ov.classList.add("on"); try{sessionStorage.setItem("popup_seen","1");}catch(e){}
+  function open(){ ov.classList.add("on");                      // abre SEMPRE (toda visita)
     if(window.NOW_TRACK) NOW_TRACK("ViewContent",{channel:"popup"}); }
   function close(){ ov.classList.remove("on"); }
   function goForm(e){
