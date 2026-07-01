@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import {
   ArrowLeft, Sparkles, Flame, Mail, Phone, MapPin, Send,
-  MessageCircle, StickyNote, CheckSquare, Square, RefreshCw, ChevronDown,
+  MessageCircle, StickyNote, CheckSquare, Square, RefreshCw, Trophy,
   UserCheck, Trash2, RotateCcw, Leaf, Pencil, Plus, Tag, X,
 } from "lucide-react";
 import TrackingPanel from "../components/TrackingPanel";
@@ -86,11 +86,23 @@ export default function LeadDetail() {
         <ArrowLeft size={16} /> Voltar ao funil
       </Link>
 
-      {lead.status !== "active" && (
+      {lead.status === "won" && (
+        <div className="flex items-center justify-between gap-3 mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-emerald-800">
+            <Trophy size={16} />
+            <span><strong>Negócio ganho</strong> 🎉{lead.valor != null && ` · ${brl(lead.valor)}`}</span>
+          </div>
+          <button className="btn-outline !py-1.5 text-xs shrink-0" onClick={() => setStatus(id, "active")}>
+            <RotateCcw size={14} /> Reabrir
+          </button>
+        </div>
+      )}
+
+      {(lead.status === "lost" || lead.status === "discarded") && (
         <div className="flex items-center justify-between gap-3 mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
           <div className="flex items-center gap-2 text-sm text-amber-800">
             <Leaf size={16} />
-            <span><strong>Lead descartado</strong>{lead.discard_reason && ` · ${lead.discard_reason}`} — entrou em <strong>nutrição leve</strong> (automação no n8n). Se der sinal de vida, volta para o corretor.</span>
+            <span><strong>Lead perdido</strong>{lead.discard_reason && ` · ${lead.discard_reason}`} — entrou em <strong>nutrição leve</strong> (sequência automática). Se der sinal de vida, volta para o corretor.</span>
           </div>
           <button className="btn-outline !py-1.5 text-xs shrink-0" onClick={() => setStatus(id, "active")}>
             <RotateCcw size={14} /> Reativar
@@ -126,15 +138,33 @@ export default function LeadDetail() {
               className="chip bg-emerald-100 text-emerald-700 hover:bg-emerald-200 !text-sm !px-3 !py-1">
               {lead.valor != null ? brl(lead.valor) : "+ Valor"}
             </button>
-            <div className="relative">
-              <select value={lead.stage_id || stages[0]?.id || ""} onChange={(e) => moveStage(id, e.target.value)}
-                className="appearance-none bg-brand-soft text-brand font-semibold rounded-lg pl-3 pr-8 py-1.5 text-sm cursor-pointer focus:outline-none">
-                {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-              <ChevronDown size={15} className="absolute right-2 top-1/2 -translate-y-1/2 text-brand pointer-events-none" />
-            </div>
+            {lead.status === "active" && (
+              <div className="flex items-center gap-2">
+                <button onClick={() => setStatus(id, "won")}
+                  className="btn !py-1.5 !px-3.5 text-sm bg-emerald-600 text-white hover:bg-emerald-700"><Trophy size={15} /> Ganho</button>
+                <button onClick={() => setShowDiscard(true)}
+                  className="btn !py-1.5 !px-3.5 text-sm bg-rose-500 text-white hover:bg-rose-600">Perdido</button>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Barra de etapas (Pipedrive-like) */}
+        {stages.length > 0 && (
+          <div className="flex items-stretch gap-1 mt-4">
+            {stages.map((s, i) => {
+              const curIdx = stages.findIndex((x) => x.id === (lead.stage_id || stages[0]?.id));
+              const filled = i <= curIdx && lead.status === "active";
+              const disabled = lead.status !== "active";
+              return (
+                <button key={s.id} disabled={disabled} onClick={() => moveStage(id, s.id)} title={s.name}
+                  className={`flex-1 min-w-0 truncate text-[11px] font-semibold py-2 px-1 rounded transition-colors ${filled ? "bg-brand text-brand-fg" : "bg-surface-sunken text-ink-soft hover:bg-surface-muted"} ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}>
+                  {s.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {lead.tags && lead.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
@@ -160,12 +190,6 @@ export default function LeadDetail() {
             </select>
           </div>
           <span className="text-[11px] text-ink-faint">atribuição manual · troque o responsável acima</span>
-          <div className="flex-1" />
-          {lead.status === "active" && (
-            <button className="btn-ghost text-xs text-rose-500 hover:bg-rose-50" onClick={() => setShowDiscard(true)}>
-              <Trash2 size={14} /> Descartar lead
-            </button>
-          )}
         </div>
       </div>
 
@@ -173,8 +197,8 @@ export default function LeadDetail() {
       {showDiscard && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4" onClick={() => setShowDiscard(false)}>
           <div className="card p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-ink mb-1">Descartar lead</h3>
-            <p className="text-xs text-ink-soft mb-3">O lead entra em nutrição leve. Escolha o motivo:</p>
+            <h3 className="font-semibold text-ink mb-1">Marcar como perdido</h3>
+            <p className="text-xs text-ink-soft mb-3">O lead entra em nutrição leve (sequência automática). Escolha o motivo:</p>
             <div className="space-y-1.5 mb-4">
               {["Sem resposta após follow-ups", "Sem perfil / fora do ICP", "Comprou com concorrente", "Sem orçamento", "Contato inválido"].map((r) => (
                 <label key={r} className="flex items-center gap-2 text-sm text-ink cursor-pointer p-1.5 rounded hover:bg-surface-muted">
