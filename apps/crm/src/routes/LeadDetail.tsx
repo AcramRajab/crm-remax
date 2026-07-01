@@ -46,6 +46,7 @@ export default function LeadDetail() {
   const [emailSubj, setEmailSubj] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [lastField, setLastField] = useState<"subj" | "body">("body");
   const [discardReason, setDiscardReason] = useState("");
   const [showDiscard, setShowDiscard] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -95,6 +96,17 @@ export default function LeadDetail() {
   const tasks = allTasks.filter((t) => t.lead_id === id);
   const waHref = `https://wa.me/${(lead.phone || "").replace(/\D/g, "")}`;
 
+  // Variáveis do e-mail: base + campos personalizados salvos.
+  const emailVars: Record<string, string> = {
+    "{{primeiro_nome}}": (lead.first_name || "").trim(),
+    "{{nome}}": [lead.first_name, lead.last_name].filter(Boolean).join(" ").trim(),
+    "{{email}}": lead.email || "",
+    "{{telefone}}": lead.phone || "",
+    ...Object.fromEntries(campos.map((c) => [`{{${c.nome}}}`, String(lead.campos?.[c.id] ?? "")])),
+  };
+  function renderVars(t: string) { let s = t || ""; for (const k in emailVars) s = s.split(k).join(emailVars[k]); return s; }
+  function insertVar(tok: string) { if (lastField === "subj") setEmailSubj((s) => s + tok); else setEmailBody((s) => s + tok); }
+
   async function saveNote() {
     const body = noteDraft.trim();
     if (!body || !lead) return;
@@ -139,7 +151,7 @@ export default function LeadDetail() {
     const r = await fetch("/api/email/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + (session?.access_token || "") },
-      body: JSON.stringify({ lead_id: id, to: lead.email, subject: emailSubj, body: emailBody }),
+      body: JSON.stringify({ lead_id: id, to: lead.email, subject: renderVars(emailSubj), body: renderVars(emailBody) }),
     });
     const j = await r.json().catch(() => ({}));
     setSendingEmail(false);
@@ -384,8 +396,19 @@ export default function LeadDetail() {
               {cTab === "email" && (
                 <div className="space-y-2">
                   <div className="text-xs text-ink-soft">Para: <strong>{lead.email || "— (lead sem e-mail)"}</strong></div>
-                  <input className="input" placeholder="Assunto" value={emailSubj} onChange={(e) => setEmailSubj(e.target.value)} />
-                  <textarea className="input resize-none" rows={4} placeholder="Escrever e-mail…" value={emailBody} onChange={(e) => setEmailBody(e.target.value)} />
+                  <input className="input" placeholder="Assunto" value={emailSubj}
+                    onFocus={() => setLastField("subj")} onChange={(e) => setEmailSubj(e.target.value)} />
+                  <textarea className="input resize-none" rows={4} placeholder="Escrever e-mail…" value={emailBody}
+                    onFocus={() => setLastField("body")} onChange={(e) => setEmailBody(e.target.value)} />
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="text-[11px] text-ink-faint mr-1">Inserir:</span>
+                    {Object.keys(emailVars).map((tok) => (
+                      <button key={tok} type="button" onClick={() => insertVar(tok)}
+                        className="chip bg-surface-sunken text-ink-soft hover:bg-brand-soft hover:text-brand !text-[11px]">
+                        {tok.replace(/[{}]/g, "")}
+                      </button>
+                    ))}
+                  </div>
                   <button className="btn-brand !py-1.5 text-xs disabled:opacity-60"
                     disabled={!lead.email || !emailSubj.trim() || sendingEmail} onClick={enviarEmail}>
                     {sendingEmail ? "Enviando…" : "Enviar e-mail"}
