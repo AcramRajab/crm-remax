@@ -56,9 +56,9 @@ export default {
     return env.ASSETS.fetch(request);
   },
 
-  // Cron (ver wrangler.toml [triggers]): processa a fila de sequências de e-mail.
+  // Cron (ver wrangler.toml [triggers]): processa sequências + automações.
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(processSequences(env));
+    ctx.waitUntil(Promise.all([processSequences(env), processAutomacoes(env)]));
   }
 };
 
@@ -377,6 +377,93 @@ async function advanceInscricao(sb, ins) {
     patch.status = "concluida";
   }
   await sb(`crm_sequencia_inscricoes?id=eq.${ins.id}`, { method: "PATCH", body: patch });
+}
+
+// ===================== MOTOR DE AUTOMAÇÕES (gatilho -> ações) =====================
+async function processAutomacoes(env) {
+  if (!env.SUPABASE_SERVICE_ROLE) return;
+  const sb = supa(env);
+  const nowIso = new Date().toISOString();
+  const fila = await sb(`crm_automacao_execucoes?status=eq.ativa&proximo_at=lte.${encodeURIComponent(nowIso)}&select=*&order=proximo_at.asc&limit=50`);
+  for (const ex of fila) {
+    try { await processExecucao(env, sb, ex); }
+    catch (e) { console.error("automacao exec", ex.id, String(e && e.message || e)); }
+  }
+}
+
+async function processExecucao(env, sb, ex) {
+  const now = () => new Date().toISOString();
+  const auto = (await sb(`crm_automacoes?id=eq.${ex.automacao_id}&select=id,ativo&limit=1`))[0];
+  if (!auto || !auto.ativo) { await sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body: { status: "cancelada", updated_at: now() } }); return; }
+  const acao = (await sb(`crm_automacao_acoes?automacao_id=eq.${ex.automacao_id}&posicao=eq.${ex.acao_idx}&select=*&limit=1`))[0];
+  if (!acao) { await sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body: { status: "concluida", updated_at: now() } }); return; }
+  const lead = (await sb(`crm_leads?id=eq.${ex.lead_id}&select=*&limit=1`))[0];
+  if (!lead) { await sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body: { status: "cancelada", updated_at: now() } }); return; }
+
+  // "aguardar": agenda o próximo passo e sai (não roda mais nada agora).
+  if (acao.tipo === "aguardar") {
+    const horas = Number((acao.config || {}).horas || 0);
+    await sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body: {
+      acao_idx: ex.acao_idx + 1, proximo_at: new Date(Date.now() + horas * 3600 * 1000).toISOString(), updated_at: now(),
+    }});
+    return;
+  }
+
+  await executeAcao(env, sb, ex, acao, lead);
+  await sb(`crm_automacao_execucoes?id=eq.${ex.id}`, { method: "PATCH", body: { acao_idx: ex.acao_idx + 1, proximo_at: now(), updated_at: now() } });
+}
+
+async function executeAcao(env, sb, ex, acao, lead) {
+  const c = acao.config || {};
+  const acc = ex.account_id;
+  const log = (kind, detail) => sb("crm_atividades", { method: "POST", body: { account_id: acc, lead_id: ex.lead_id, actor_id: null, kind, detail } });
+
+  switch (acao.tipo) {
+    case "enviar_email": {
+      if (!env.RESEND_API_KEY || !lead.email) return;
+      const conta = (await sb(`core_contas?id=eq.${acc}&select=email_remetente,email_remetente_nome,email_ativo&limit=1`))[0] || {};
+      if (!conta.email_ativo || !conta.email_remetente) return;
+      const first = (lead.first_name || "").trim();
+      const vars = { "{{primeiro_nome}}": first || "tudo bem", "{{nome}}": [lead.first_name, lead.last_name].filter(Boolean).join(" ") || first };
+      try {
+        const r = await sendEmail(env, { from: conta.email_remetente, fromName: conta.email_remetente_nome, to: lead.email, subject: renderTpl(c.assunto || "", vars), html: corpoToHtml(renderTpl(c.corpo || "", vars)) });
+        await log("email", { to: lead.email, subject: c.assunto, provider_id: (r && r.id) || null, auto: true });
+      } catch (e) { await log("email", { to: lead.email, subject: c.assunto, erro: String(e && e.message || e).slice(0, 200) }); }
+      return;
+    }
+    case "adicionar_tag": {
+      const tag = String(c.tag || "").trim(); if (!tag) return;
+      const tags = Array.from(new Set([...(lead.tags || []), tag]));
+      await sb(`crm_leads?id=eq.${lead.id}`, { method: "PATCH", body: { tags } }); await log("tag", { add: tag }); return;
+    }
+    case "remover_tag": {
+      const tag = String(c.tag || "").trim(); if (!tag) return;
+      const tags = (lead.tags || []).filter((t) => t !== tag);
+      await sb(`crm_leads?id=eq.${lead.id}`, { method: "PATCH", body: { tags } }); await log("tag", { remove: tag }); return;
+    }
+    case "atualizar_campo": {
+      const campo = c.campo; if (!campo) return;
+      const campos = Object.assign({}, lead.campos || {}, { [campo]: c.valor });
+      await sb(`crm_leads?id=eq.${lead.id}`, { method: "PATCH", body: { campos } }); await log("campo", { campo, valor: c.valor }); return;
+    }
+    case "alterar_score": {
+      const val = Number(c.valor || 0);
+      const novo = (c.modo === "add") ? (Number(lead.score || 0) + val) : val;
+      await sb(`crm_leads?id=eq.${lead.id}`, { method: "PATCH", body: { score: novo } }); await log("score", { score: novo }); return;
+    }
+    case "webhook": {
+      const url = String(c.url || ""); if (!/^https?:\/\//.test(url)) return;
+      try { await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lead, automacao_id: ex.automacao_id }) }); await log("webhook", { url }); }
+      catch (e) { await log("webhook", { url, erro: String(e && e.message || e).slice(0, 150) }); }
+      return;
+    }
+    case "notificar": {
+      await log("notificacao", { mensagem: c.mensagem || "" }); return;
+    }
+    default:
+      // add_segmento / remove_segmento e afins: sem infra ainda — registra e segue.
+      await log("acao_pulada", { tipo: acao.tipo }); return;
+  }
 }
 
 function renderTpl(tpl, vars) {

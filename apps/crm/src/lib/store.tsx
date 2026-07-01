@@ -93,7 +93,7 @@ function mapLead(r: any): Lead {
     created_at: r.created_at,
     last_activity: r.updated_at || r.created_at,
     journey: [],
-    tags: [],
+    tags: Array.isArray(r.tags) ? r.tags : [],
     channel: j.channel || null,
     corretor_ref: j.corretor_ref || null,
     indicador: j.indicador || null,
@@ -186,7 +186,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const DB_COLS = new Set([
     "valor", "first_name", "last_name", "email", "phone",
     "persona", "score", "status", "discard_reason", "followup_count",
-    "stage_id", "owner_id", "campos",
+    "stage_id", "owner_id", "campos", "tags",
   ]);
   const UUID_COLS = new Set(["stage_id", "owner_id"]);
 
