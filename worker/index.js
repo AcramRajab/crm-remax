@@ -501,7 +501,9 @@ function corpoToHtml(text, brand) {
 function esc0(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
 async function sendEmail(env, { from, fromName, to, subject, html, replyTo }) {
-  const fromHeader = fromName ? `${fromName} <${from}>` : from;
+  from = String(from || "").trim().replace(/[\s/]+$/g, "");   // remove barra/espaço sobrando
+  to = String(to || "").trim();
+  const fromHeader = fromName ? `${String(fromName).trim()} <${from}>` : from;
   const payload = { from: fromHeader, to: [to], subject, html };
   if (replyTo) payload.reply_to = replyTo;
   const r = await fetch("https://api.resend.com/emails", {
