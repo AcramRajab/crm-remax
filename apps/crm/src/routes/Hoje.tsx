@@ -2,12 +2,11 @@ import { Link } from "react-router-dom";
 import { CheckSquare, Square, Clock, AlertTriangle, CalendarDays, Phone } from "lucide-react";
 import { useStore } from "../lib/store";
 import { useSession } from "../lib/session";
-import { getUser } from "../lib/mock";
 import { Avatar } from "../components/Avatar";
 import { dateLabel } from "../lib/format";
 
 export default function Hoje() {
-  const { tasks, toggleTask, getLead } = useStore();
+  const { tasks, toggleTask, getLead, getMember } = useStore();
   const { user, canSeeAll } = useSession();
 
   // tarefas dos leads visíveis ao papel atual
@@ -69,6 +68,7 @@ export default function Hoje() {
 }
 
 function Group({ title, icon: Icon, tone, tasks, toggle, getLead }: any) {
+  const { getMember } = useStore();
   if (tasks.length === 0) return null;
   const toneClass = tone === "rose" ? "text-rose-500" : tone === "brand" ? "text-brand" : "text-ink-faint";
   return (
@@ -79,7 +79,7 @@ function Group({ title, icon: Icon, tone, tasks, toggle, getLead }: any) {
       <div className="card divide-y divide-line">
         {tasks.map((t: any) => {
           const lead = getLead(t.lead_id);
-          const owner = lead && getUser(lead.owner_id);
+          const owner = lead && getMember(lead.owner_id);
           return (
             <div key={t.id} className="flex items-center gap-3 px-4 py-3">
               <button onClick={() => toggle(t.id)} className="text-ink-faint hover:text-brand">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Flame, Clock, Phone, LayoutGrid, List as ListIcon } from "lucide-react";
-import { stages, getUser, phaseLabel } from "../lib/mock";
+import { phaseLabel } from "../lib/mock";
 import { timeAgo, scoreColor } from "../lib/format";
 
 const brl = (v?: number | null) =>
@@ -77,10 +77,12 @@ function ViewBtn({ active, onClick, icon: Icon, label }: { active: boolean; onCl
 
 /* ---------------- KANBAN ---------------- */
 function KanbanView({ leads, onDragStart, onDrop }: { leads: Lead[]; onDragStart: (id: string) => void; onDrop: (stageId: string) => void }) {
+  const { stages } = useStore();
+  const firstId = stages[0]?.id;
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
       {stages.map((stage) => {
-        const items = leads.filter((l) => l.stage_id === stage.id);
+        const items = leads.filter((l) => (l.stage_id || firstId) === stage.id);
         const total = items.reduce((s, l) => s + (l.valor || 0), 0);
         return (
           <div key={stage.id} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(stage.id)} className="w-[300px] shrink-0">
@@ -108,7 +110,8 @@ function KanbanView({ leads, onDragStart, onDrop }: { leads: Lead[]; onDragStart
 }
 
 function LeadCard({ lead: l, onDragStart }: { lead: Lead; onDragStart: (id: string) => void }) {
-  const owner = getUser(l.owner_id);
+  const { getMember } = useStore();
+  const owner = getMember(l.owner_id);
   return (
     <Link
       to={`/leads/${l.id}`}
@@ -125,7 +128,7 @@ function LeadCard({ lead: l, onDragStart }: { lead: Lead; onDragStart: (id: stri
       <div className="text-xs text-ink-faint mt-2 truncate">{l.lt_source}</div>
       <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-line">
         <div className="flex items-center gap-1.5 text-xs text-ink-soft">
-          <Avatar name={owner?.name || ""} color={owner?.avatar_color} size={20} />
+          <Avatar name={owner?.name || ""} size={20} />
           <span className="hidden xl:inline">{owner?.name.split(" ")[0]}</span>
         </div>
         <div className="flex items-center gap-2.5 text-[11px] text-ink-faint">
@@ -139,10 +142,12 @@ function LeadCard({ lead: l, onDragStart }: { lead: Lead; onDragStart: (id: stri
 
 /* ---------------- LISTA (agrupada por etapa) ---------------- */
 function ListaView({ leads, onMove }: { leads: Lead[]; onMove: (leadId: string, stageId: string) => void }) {
+  const { stages, getMember } = useStore();
+  const firstId = stages[0]?.id;
   return (
     <div className="space-y-5">
       {stages.map((stage) => {
-        const items = leads.filter((l) => l.stage_id === stage.id);
+        const items = leads.filter((l) => (l.stage_id || firstId) === stage.id);
         if (items.length === 0) return null;
         return (
           <div key={stage.id} className="card overflow-hidden">
@@ -155,7 +160,7 @@ function ListaView({ leads, onMove }: { leads: Lead[]; onMove: (leadId: string, 
             <table className="w-full text-sm">
               <tbody>
                 {items.map((l) => {
-                  const owner = getUser(l.owner_id);
+                  const owner = getMember(l.owner_id);
                   return (
                     <tr key={l.id} className="border-b border-line last:border-0 hover:bg-surface-muted/50">
                       <td className="px-4 py-2.5">
@@ -165,7 +170,7 @@ function ListaView({ leads, onMove }: { leads: Lead[]; onMove: (leadId: string, 
                       <td className="px-4 py-2.5 text-ink-soft hidden md:table-cell">{l.lt_source}</td>
                       <td className="px-4 py-2.5 hidden sm:table-cell">
                         <span className="flex items-center gap-1.5 text-ink-soft text-xs">
-                          <Avatar name={owner?.name || ""} color={owner?.avatar_color} size={20} />
+                          <Avatar name={owner?.name || ""} size={20} />
                           {owner?.name.split(" ")[0]}
                         </span>
                       </td>
@@ -173,7 +178,7 @@ function ListaView({ leads, onMove }: { leads: Lead[]; onMove: (leadId: string, 
                       <td className="px-4 py-2.5 text-xs text-ink-faint hidden lg:table-cell">{l.followup_count}/12 · {timeAgo(l.last_activity)}</td>
                       <td className="px-4 py-2.5 text-right">
                         <select
-                          value={l.stage_id}
+                          value={l.stage_id || firstId}
                           onChange={(e) => onMove(l.id, e.target.value)}
                           className="appearance-none bg-surface-muted border border-line rounded-lg px-2 py-1 text-xs font-medium text-ink-soft cursor-pointer focus:outline-none focus:border-brand"
                           title="Mover de etapa"

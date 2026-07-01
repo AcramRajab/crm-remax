@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import TrackingPanel from "../components/TrackingPanel";
 import {
-  getUser, stages, users,
   dossies, messages as msgMap, activities as actMap,
 } from "../lib/mock";
 
@@ -24,7 +23,7 @@ import type { Message } from "../lib/types";
 
 export default function LeadDetail() {
   const { id = "" } = useParams();
-  const { getLead, getEmp, reassign, moveStage, setStatus, updateLead, tasks: allTasks, toggleTask, addTask } = useStore();
+  const { getLead, getEmp, getMember, stages, members, reassign, moveStage, setStatus, updateLead, tasks: allTasks, toggleTask, addTask } = useStore();
   const lead = getLead(id);
 
   const [channel, setChannel] = useState<"whatsapp" | "email">("whatsapp");
@@ -55,7 +54,7 @@ export default function LeadDetail() {
     );
   }
 
-  const owner = getUser(lead.owner_id);
+  const owner = getMember(lead.owner_id);
   const emp = getEmp(lead.empreendimento_id);
   const dossie = dossies[id];
   const tasks = allTasks.filter((t) => t.lead_id === id);
@@ -103,7 +102,7 @@ export default function LeadDetail() {
       <div className="card p-5 mb-5">
         <div className="flex flex-wrap items-start gap-4 justify-between">
           <div className="flex items-center gap-3">
-            <Avatar name={`${lead.first_name} ${lead.last_name}`} color={owner?.avatar_color} size={48} />
+            <Avatar name={`${lead.first_name} ${lead.last_name}`} size={48} />
             <div>
               <h1 className="font-display text-xl font-extrabold text-ink leading-tight flex items-center gap-2">
                 {lead.first_name} {lead.last_name}
@@ -128,7 +127,7 @@ export default function LeadDetail() {
               {lead.valor != null ? brl(lead.valor) : "+ Valor"}
             </button>
             <div className="relative">
-              <select value={lead.stage_id} onChange={(e) => moveStage(id, e.target.value)}
+              <select value={lead.stage_id || stages[0]?.id || ""} onChange={(e) => moveStage(id, e.target.value)}
                 className="appearance-none bg-brand-soft text-brand font-semibold rounded-lg pl-3 pr-8 py-1.5 text-sm cursor-pointer focus:outline-none">
                 {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -154,9 +153,10 @@ export default function LeadDetail() {
           <div className="flex items-center gap-2 rounded-lg border border-line pl-2.5 pr-1.5 py-1">
             <UserCheck size={14} className="text-ink-faint" />
             <span className="text-xs text-ink-faint">Responsável</span>
-            <select value={lead.owner_id} onChange={(e) => reassign(id, e.target.value)}
+            <select value={lead.owner_id || ""} onChange={(e) => reassign(id, e.target.value)}
               className="appearance-none bg-transparent text-sm font-semibold text-ink cursor-pointer focus:outline-none pr-1">
-              {users.filter((u) => u.role === "broker" || u.id === lead.owner_id).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              <option value="">— Não atribuído —</option>
+              {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </div>
           <span className="text-[11px] text-ink-faint">atribuição manual · troque o responsável acima</span>

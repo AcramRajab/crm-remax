@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Flame, Search, Leaf } from "lucide-react";
-import { getUser, getStage } from "../lib/mock";
 import { timeAgo, scoreColor } from "../lib/format";
 import { useSession } from "../lib/session";
 import { useStore } from "../lib/store";
@@ -11,7 +10,7 @@ type Filter = "ativos" | "descartados" | "todos";
 
 export default function Leads() {
   const { user, canSeeAll } = useSession();
-  const { leads: all } = useStore();
+  const { leads: all, getMember, getStage, stages } = useStore();
   const [params, setParams] = useSearchParams();
   const q = params.get("q") || "";
   const [filter, setFilter] = useState<Filter>("ativos");
@@ -65,8 +64,8 @@ export default function Leads() {
           </thead>
           <tbody>
             {leads.map((l) => {
-              const owner = getUser(l.owner_id);
-              const stage = getStage(l.stage_id);
+              const owner = getMember(l.owner_id);
+              const stage = getStage(l.stage_id) || stages[0];
               const discarded = l.status !== "active";
               return (
                 <tr key={l.id} className="border-b border-line last:border-0 hover:bg-surface-muted/50">
@@ -83,7 +82,7 @@ export default function Leads() {
                   <td className="px-4 py-3 text-ink-soft">{l.lt_source}</td>
                   <td className="px-4 py-3">
                     <span className="flex items-center gap-1.5 text-ink-soft">
-                      <Avatar name={owner?.name || ""} color={owner?.avatar_color} size={22} />
+                      <Avatar name={owner?.name || ""} size={22} />
                       {owner?.name.split(" ")[0]}
                     </span>
                   </td>

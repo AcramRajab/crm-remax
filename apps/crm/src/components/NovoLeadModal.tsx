@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, UserPlus } from "lucide-react";
 import { useStore } from "../lib/store";
-import { users } from "../lib/mock";
 
 const PERSONAS = [
   "Investidor pré-lançamento", "Saúde & Medicina", "Universitário",
@@ -11,13 +10,13 @@ const PERSONAS = [
 const SOURCES = ["Indicação", "Meta Ads", "Google Ads", "Instagram", "WhatsApp", "Outbound", "Site / LP"];
 
 export default function NovoLeadModal({ onClose }: { onClose: () => void }) {
-  const { addLead, emps } = useStore();
+  const { addLead, emps, members } = useStore();
   const nav = useNavigate();
-  const brokers = users.filter((u) => u.role === "broker");
+  const brokers = members.filter((u) => u.role === "broker" || u.role === "account_admin");
   const [f, setF] = useState({
     first_name: "", last_name: "", email: "", phone: "",
     persona: PERSONAS[0], empreendimento_id: emps[0]?.id ?? "",
-    owner_id: brokers[0].id, lt_source: SOURCES[0],
+    owner_id: brokers[0]?.id ?? "", lt_source: SOURCES[0],
   });
   const set = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
 

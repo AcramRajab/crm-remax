@@ -5,7 +5,10 @@ import { createContext, useContext, useState, ReactNode, useCallback, useEffect 
 import { supabase } from "./supabase";
 import { useAuth } from "./auth";
 import { account } from "./tenant";
-import type { Lead, LeadStatus, Task } from "./types";
+import type { Lead, LeadStatus, Task, FunnelStage } from "./types";
+
+// Membro real da conta (core_usuarios) — usado nos seletores de responsável.
+export interface Member { id: string; name: string; role: string }
 
 export interface TaskRow extends Task {
   lead_id: string;
@@ -31,6 +34,10 @@ interface Store {
   getLead: (id: string) => Lead | undefined;
   emps: Emp[];
   getEmp: (id: string) => Emp | undefined;
+  stages: FunnelStage[];
+  getStage: (id: string) => FunnelStage | undefined;
+  members: Member[];
+  getMember: (id: string) => Member | undefined;
   addLead: (input: NewLeadInput) => Lead;
   updateLead: (id: string, patch: Partial<Lead>) => void;
   moveStage: (id: string, stageId: string) => void;
@@ -74,7 +81,7 @@ function mapLead(r: any): Lead {
     persona: r.persona || "—",
     score: r.score ?? 0,
     valor: r.valor ?? null,
-    stage_id: r.stage_id || "s_novo",   // cai na 1ª coluna do funil
+    stage_id: r.stage_id || "",         // vazio -> cai na 1ª etapa real (resolvido na UI)
     owner_id: r.owner_id || "",
     status: (r.status as LeadStatus) || "active",
     origin: (r.origin as Lead["origin"]) || "inbound",
@@ -94,21 +101,33 @@ function mapLead(r: any): Lead {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [emps, setEmps] = useState<Emp[]>([]);
+  const [stages, setStages] = useState<FunnelStage[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
 
   const reload = useCallback(async () => {
     // Leads + empreendimentos REAIS, ambos isolados por RLS na conta logada.
-    const [leadsRes, empsRes] = await Promise.all([
+    const [leadsRes, empsRes, stagesRes, membersRes] = await Promise.all([
       supabase.from("crm_leads").select("*").order("created_at", { ascending: false }),
       supabase
         .from("core_empreendimentos")
         .select("id, slug, name, status, construtora, landing_page_url, personas, details")
         .order("created_at", { ascending: true }),
+      supabase.from("crm_funil_etapas").select("id, name, phase, position").order("position", { ascending: true }),
+      supabase.from("core_usuarios").select("user_id, name, email, role").order("created_at", { ascending: true }),
     ]);
     if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data.map(mapLead));
     if (!empsRes.error && empsRes.data) setEmps(empsRes.data as Emp[]);
+    if (!stagesRes.error && stagesRes.data) setStages(stagesRes.data as FunnelStage[]);
+    if (!membersRes.error && membersRes.data) {
+      setMembers(membersRes.data.map((m: any) => ({
+        id: m.user_id,
+        name: m.name || (m.email ? m.email.split("@")[0] : "—"),
+        role: m.role,
+      })));
+    }
     setLoading(false);
   }, []);
 
@@ -121,6 +140,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const getLead = useCallback((id: string) => leads.find((l) => l.id === id), [leads]);
   const getEmp = useCallback((id: string) => emps.find((e) => e.id === id), [emps]);
+  const getStage = useCallback((id: string) => stages.find((s) => s.id === id), [stages]);
+  const getMember = useCallback((id: string) => members.find((m) => m.id === id), [members]);
 
   const addLead = useCallback((input: NewLeadInput): Lead => {
     const nowIso = new Date().toISOString();
@@ -150,18 +171,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return lead;
   }, []);
 
-  // Colunas que existem em crm_leads e NÃO referenciam mock (stage_id/owner_id
-  // ainda usam dados de demonstração, então não são persistidos aqui).
+  // Colunas reais de crm_leads que o app persiste. stage_id/owner_id agora usam
+  // dados reais (crm_funil_etapas / core_usuarios), então também gravam.
   const DB_COLS = new Set([
     "valor", "first_name", "last_name", "email", "phone",
     "persona", "score", "status", "discard_reason", "followup_count",
+    "stage_id", "owner_id",
   ]);
+  const UUID_COLS = new Set(["stage_id", "owner_id"]);
 
   const updateLead = useCallback((id: string, patch: Partial<Lead>) => {
     setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch, last_activity: new Date().toISOString() } : l)));
     // Persiste no Supabase só os campos reais (RLS garante isolamento por conta).
     const dbPatch: Record<string, any> = {};
-    for (const k of Object.keys(patch)) if (DB_COLS.has(k)) dbPatch[k] = (patch as any)[k];
+    for (const k of Object.keys(patch)) {
+      if (!DB_COLS.has(k)) continue;
+      let v = (patch as any)[k];
+      if (UUID_COLS.has(k) && (v === "" || v === undefined)) v = null; // FK: vazio -> null
+      dbPatch[k] = v;
+    }
     if (Object.keys(dbPatch).length) {
       dbPatch.updated_at = new Date().toISOString();
       supabase.from("crm_leads").update(dbPatch).eq("id", id).then(({ error }) => {
@@ -186,7 +214,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ leads, loading, reload, getLead, emps, getEmp, addLead, updateLead, moveStage, reassign, setStatus, tasks, toggleTask, addTask }}>
+    <Ctx.Provider value={{ leads, loading, reload, getLead, emps, getEmp, stages, getStage, members, getMember, addLead, updateLead, moveStage, reassign, setStatus, tasks, toggleTask, addTask }}>
       {children}
     </Ctx.Provider>
   );
