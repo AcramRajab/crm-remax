@@ -259,7 +259,7 @@ async function handleSendEmail(request, env) {
   try {
     const res = await sendEmail(env, {
       from: conta.email_remetente, fromName: conta.email_remetente_nome,
-      to, subject, html: corpoToHtml(corpo), replyTo: caller.email || null,
+      to, subject, html: corpoToHtml(corpo, conta.email_remetente_nome), replyTo: caller.email || null,
     });
     provider_id = (res && res.id) || null;
   } catch (e) {
@@ -351,7 +351,7 @@ async function processInscricao(env, sb, ins) {
   const full = [lead.first_name, lead.last_name].filter(Boolean).join(" ").trim();
   const vars = { "{{primeiro_nome}}": first || "tudo bem", "{{nome}}": full || first || "" };
   const assunto = renderTpl(passo.assunto, vars);
-  const html = corpoToHtml(renderTpl(passo.corpo, vars));
+  const html = corpoToHtml(renderTpl(passo.corpo, vars), conta.email_remetente_nome);
 
   let status = "enviado", provider_id = null, erro = null;
   try {
@@ -426,7 +426,7 @@ async function executeAcao(env, sb, ex, acao, lead) {
       const first = (lead.first_name || "").trim();
       const vars = { "{{primeiro_nome}}": first || "tudo bem", "{{nome}}": [lead.first_name, lead.last_name].filter(Boolean).join(" ") || first };
       try {
-        const r = await sendEmail(env, { from: conta.email_remetente, fromName: conta.email_remetente_nome, to: lead.email, subject: renderTpl(c.assunto || "", vars), html: corpoToHtml(renderTpl(c.corpo || "", vars)) });
+        const r = await sendEmail(env, { from: conta.email_remetente, fromName: conta.email_remetente_nome, to: lead.email, subject: renderTpl(c.assunto || "", vars), html: corpoToHtml(renderTpl(c.corpo || "", vars), conta.email_remetente_nome) });
         await log("email", { to: lead.email, subject: c.assunto, provider_id: (r && r.id) || null, auto: true });
       } catch (e) { await log("email", { to: lead.email, subject: c.assunto, erro: String(e && e.message || e).slice(0, 200) }); }
       return;
@@ -472,11 +472,26 @@ function renderTpl(tpl, vars) {
   return s;
 }
 
-function corpoToHtml(text) {
+// Template de e-mail no design system (email-safe: tabelas + CSS inline).
+function corpoToHtml(text, brand) {
   const esc = String(text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const body = esc.replace(/\\n/g, "<br>").replace(/\n/g, "<br>");
-  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#222">' + body + "</div>";
+  const marca = String(brand || "NOW Residence");
+  return [
+    '<div style="background:#f3f1ed;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;margin:0;">',
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.06);">',
+    '<tr><td style="background:#181818;padding:22px 28px;">',
+    '<span style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-.02em;">NOW <span style="color:#EC008C;">Residence</span></span>',
+    '</td></tr>',
+    '<tr><td style="height:4px;background:#EC008C;line-height:4px;font-size:0;">&nbsp;</td></tr>',
+    '<tr><td style="padding:28px;color:#222222;font-size:15px;line-height:1.65;">' + body + '</td></tr>',
+    '<tr><td style="padding:18px 28px;background:#f7f6f3;border-top:1px solid #ececec;color:#8a8a8a;font-size:12px;line-height:1.5;">',
+    esc0(marca) + ' &middot; Comercializa&ccedil;&atilde;o RE/MAX<br/>NOW Residence &middot; Centro de Itaja&iacute; &mdash; SC',
+    '</td></tr>',
+    '</table></div>',
+  ].join("");
 }
+function esc0(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
 async function sendEmail(env, { from, fromName, to, subject, html, replyTo }) {
   const fromHeader = fromName ? `${fromName} <${from}>` : from;
