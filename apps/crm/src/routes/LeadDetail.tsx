@@ -248,6 +248,21 @@ export default function LeadDetail() {
             )}
           </section>
 
+          {/* Indicação (corretor externo que trouxe o lead) */}
+          {lead.indicador && (lead.indicador.nome || lead.indicador.imobiliaria) && (
+            <section className="card p-5 border-brand/30">
+              <h2 className="flex items-center gap-2 font-semibold text-ink mb-3 text-sm uppercase tracking-wide text-brand">
+                <UserCheck size={15} /> Indicado por
+              </h2>
+              <div className="space-y-2 text-sm">
+                {lead.indicador.nome && <Row k="Corretor" v={lead.indicador.nome} />}
+                {lead.indicador.imobiliaria && <Row k="Imobiliária" v={lead.indicador.imobiliaria} />}
+                {lead.indicador.telefone && <Row k="Telefone" v={lead.indicador.telefone} cap={false} />}
+                {lead.corretor_ref && <Row k="Código" v={lead.corretor_ref} cap={false} />}
+              </div>
+            </section>
+          )}
+
           {/* Atribuição */}
           <section className="card p-5">
             <h2 className="font-semibold text-ink mb-3 text-sm uppercase tracking-wide text-ink-faint">Atribuição</h2>
@@ -255,6 +270,7 @@ export default function LeadDetail() {
               <Row k="First-touch" v={lead.ft_source} />
               <Row k="Last-touch" v={lead.lt_source} />
               <Row k="Origem" v={lead.origin} />
+              {lead.channel && <Row k="Canal" v={lead.channel} />}
               <Row k="Responsável" v={owner?.name || "—"} />
               <Row k="Criado" v={timeAgo(lead.created_at)} />
             </div>
@@ -345,11 +361,11 @@ function EditModal({ lead, onClose, onSave }: { lead: any; onClose: () => void; 
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
+function Row({ k, v, cap = true }: { k: string; v: string; cap?: boolean }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-ink-faint">{k}</span>
-      <span className="text-ink font-medium text-right capitalize">{v}</span>
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-ink-faint shrink-0">{k}</span>
+      <span className={`text-ink font-medium text-right ${cap ? "capitalize" : ""}`}>{v}</span>
     </div>
   );
 }

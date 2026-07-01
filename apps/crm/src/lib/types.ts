@@ -72,6 +72,10 @@ export interface Lead {
   journey: JourneyStep[];
   tags?: string[];
   discard_reason?: string;
+  // Origem do lead (gravado pelo Worker no journey jsonb):
+  channel?: string | null;              // form | whatsapp
+  corretor_ref?: string | null;         // código do ?c= no link
+  indicador?: { nome?: string | null; imobiliaria?: string | null; telefone?: string | null } | null;
 }
 
 export interface Dossie {

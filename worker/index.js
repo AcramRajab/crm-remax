@@ -107,7 +107,7 @@ async function handleLead(request, env, url) {
     email: data.email || null,
     phone: data.telefone || null,
     first_name, last_name,
-    origin: "inbound",
+    origin: indicador ? "indicacao" : "inbound",
     owner_id,
     journey
   }});

@@ -60,6 +60,8 @@ const uid = (p: string) => `${p}_${++counter}`;
 
 // crm_leads (banco) -> Lead (app). Defaults seguros pra não quebrar a UI.
 function mapLead(r: any): Lead {
+  // journey vem do Worker como OBJETO {channel, corretor_ref, indicador, ...}.
+  const j = r.journey && typeof r.journey === "object" && !Array.isArray(r.journey) ? r.journey : {};
   return {
     id: r.id,
     account_id: r.account_id,
@@ -81,6 +83,9 @@ function mapLead(r: any): Lead {
     last_activity: r.updated_at || r.created_at,
     journey: [],
     tags: [],
+    channel: j.channel || null,
+    corretor_ref: j.corretor_ref || null,
+    indicador: j.indicador || null,
   };
 }
 
