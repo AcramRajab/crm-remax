@@ -40,6 +40,7 @@ interface Store {
   getMember: (id: string) => Member | undefined;
   addLead: (input: NewLeadInput) => Lead;
   updateLead: (id: string, patch: Partial<Lead>) => void;
+  logActivity: (leadId: string, kind: string, detail?: any) => Promise<void>;
   moveStage: (id: string, stageId: string) => void;
   reassign: (id: string, ownerId: string) => void;
   setStatus: (id: string, status: LeadStatus, reason?: string) => void;
@@ -109,7 +110,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     // Leads + empreendimentos REAIS, ambos isolados por RLS na conta logada.
-    const [leadsRes, empsRes, stagesRes, membersRes] = await Promise.all([
+    const [leadsRes, empsRes, stagesRes, membersRes, tasksRes] = await Promise.all([
       supabase.from("crm_leads").select("*").order("created_at", { ascending: false }),
       supabase
         .from("core_empreendimentos")
@@ -117,6 +118,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .order("created_at", { ascending: true }),
       supabase.from("crm_funil_etapas").select("id, name, phase, position").order("position", { ascending: true }),
       supabase.from("core_usuarios").select("user_id, name, email, role").order("created_at", { ascending: true }),
+      supabase.from("crm_tarefas").select("id, lead_id, title, due_at, done").order("due_at", { ascending: true }),
     ]);
     if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data.map(mapLead));
     if (!empsRes.error && empsRes.data) setEmps(empsRes.data as Emp[]);
@@ -128,6 +130,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         role: m.role,
       })));
     }
+    if (!tasksRes.error && tasksRes.data) setTasks(tasksRes.data as TaskRow[]);
     setLoading(false);
   }, []);
 
@@ -198,6 +201,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Registra um evento na timeline do lead (crm_atividades).
+  const logActivity = useCallback(async (leadId: string, kind: string, detail: any = {}) => {
+    const lead = leads.find((l) => l.id === leadId);
+    if (!lead) return;
+    const { data: auth } = await supabase.auth.getUser();
+    await supabase.from("crm_atividades").insert({
+      account_id: lead.account_id, lead_id: leadId, actor_id: auth?.user?.id || null, kind, detail,
+    });
+  }, [leads]);
+
   const moveStage = useCallback((id: string, stageId: string) => updateLead(id, { stage_id: stageId }), [updateLead]);
   const reassign = useCallback((id: string, ownerId: string) => updateLead(id, { owner_id: ownerId }), [updateLead]);
   const setStatus = useCallback(
@@ -206,15 +219,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const toggleTask = useCallback((taskId: string) => {
-    setTasks((ts) => ts.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t)));
-  }, []);
+    const cur = tasks.find((t) => t.id === taskId);
+    const nd = !cur?.done;
+    setTasks((ts) => ts.map((t) => (t.id === taskId ? { ...t, done: nd } : t)));
+    supabase.from("crm_tarefas").update({ done: nd }).eq("id", taskId).then(() => {});
+  }, [tasks]);
 
-  const addTask = useCallback((leadId: string, title: string, dueAt: string) => {
-    setTasks((ts) => [...ts, { id: uid("t"), lead_id: leadId, title, due_at: dueAt, done: false }]);
-  }, []);
+  const addTask = useCallback(async (leadId: string, title: string, dueAt: string) => {
+    const lead = leads.find((l) => l.id === leadId);
+    if (!lead) return;
+    const { data } = await supabase.from("crm_tarefas")
+      .insert({ account_id: lead.account_id, lead_id: leadId, title, due_at: dueAt, done: false })
+      .select("id, lead_id, title, due_at, done").single();
+    if (data) setTasks((ts) => [...ts, data as TaskRow]);
+  }, [leads]);
 
   return (
-    <Ctx.Provider value={{ leads, loading, reload, getLead, emps, getEmp, stages, getStage, members, getMember, addLead, updateLead, moveStage, reassign, setStatus, tasks, toggleTask, addTask }}>
+    <Ctx.Provider value={{ leads, loading, reload, getLead, emps, getEmp, stages, getStage, members, getMember, addLead, updateLead, logActivity, moveStage, reassign, setStatus, tasks, toggleTask, addTask }}>
       {children}
     </Ctx.Provider>
   );

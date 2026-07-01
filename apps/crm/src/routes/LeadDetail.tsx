@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import {
@@ -7,44 +7,65 @@ import {
   UserCheck, Trash2, RotateCcw, Leaf, Pencil, Plus, Tag, X,
 } from "lucide-react";
 import TrackingPanel from "../components/TrackingPanel";
-import {
-  dossies, messages as msgMap, activities as actMap,
-} from "../lib/mock";
+import { dossies } from "../lib/mock";
 
-// Anotação real (crm_notas).
-interface DbNote { id: string; body: string; created_at: string }
+// Composer (abas tipo Pipedrive) + timeline (crm_atividades + crm_notas).
+type CTab = "nota" | "atividade" | "chamada" | "whatsapp" | "email";
+interface HistItem { id: string; type: "atividade" | "nota"; kind?: string; detail?: any; body?: string; at: string }
 // Valor em R$ (pt-BR), sem centavos.
 const brl = (v?: number | null) =>
   v == null ? null : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
+function histLabel(h: HistItem, getStage: (id: string) => any, getMember: (id: string) => any): string {
+  if (h.type === "nota") return "📝 " + (h.body || "");
+  const d = h.detail || {};
+  switch (h.kind) {
+    case "stage_change": return `➡️ Movido para "${getStage(d.to)?.name || "etapa"}"`;
+    case "status":
+      return d.status === "won" ? "🏆 Marcado como Ganho"
+        : d.status === "active" ? "↩️ Reaberto"
+        : "🍂 Marcado como Perdido" + (d.reason ? ` · ${d.reason}` : "");
+    case "assign": return `👤 Responsável: ${getMember(d.owner_id)?.name || "definido"}`;
+    case "chamada": return "📞 Ligação" + (d.nota ? ` · ${d.nota}` : "");
+    case "whatsapp": return "💬 WhatsApp aberto";
+    case "tarefa": return "✅ Tarefa: " + (d.title || "");
+    default: return h.kind || "Evento";
+  }
+}
 import { useStore } from "../lib/store";
-import { timeAgo, timeLabel, dateLabel, scoreColor } from "../lib/format";
+import { timeAgo, dateLabel, scoreColor } from "../lib/format";
 import { Avatar } from "../components/Avatar";
-import type { Message } from "../lib/types";
 
 export default function LeadDetail() {
   const { id = "" } = useParams();
-  const { getLead, getEmp, getMember, stages, members, reassign, moveStage, setStatus, updateLead, tasks: allTasks, toggleTask, addTask } = useStore();
+  const { getLead, getEmp, getMember, getStage, stages, members, reassign, moveStage, setStatus, updateLead, logActivity, tasks: allTasks, toggleTask, addTask } = useStore();
   const lead = getLead(id);
 
-  const [channel, setChannel] = useState<"whatsapp" | "email">("whatsapp");
-  const [draft, setDraft] = useState("");
-  const [msgs, setMsgs] = useState<Message[]>(msgMap[id] || []);
+  const [emailSubj, setEmailSubj] = useState("");
+  const [emailBody, setEmailBody] = useState("");
   const [discardReason, setDiscardReason] = useState("");
   const [showDiscard, setShowDiscard] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
-  const [notes, setNotes] = useState<DbNote[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [cTab, setCTab] = useState<CTab>("nota");
+  const [hist, setHist] = useState<HistItem[]>([]);
+  const [callNote, setCallNote] = useState("");
 
-  // Carrega as anotações REAIS do lead (crm_notas, isolado por RLS).
-  useEffect(() => {
-    let on = true;
-    supabase.from("crm_notas").select("id, body, created_at")
-      .eq("lead_id", id).order("created_at", { ascending: false })
-      .then(({ data }) => { if (on) setNotes((data as DbNote[]) || []); });
-    return () => { on = false; };
+  // Timeline REAL: crm_atividades + crm_notas (isolados por RLS).
+  const loadHist = useCallback(async () => {
+    const [atv, nts] = await Promise.all([
+      supabase.from("crm_atividades").select("id, kind, detail, created_at").eq("lead_id", id).order("created_at", { ascending: false }),
+      supabase.from("crm_notas").select("id, body, created_at").eq("lead_id", id).order("created_at", { ascending: false }),
+    ]);
+    const items: HistItem[] = [
+      ...(((atv.data as any[]) || []).map((a) => ({ id: "a_" + a.id, type: "atividade" as const, kind: a.kind, detail: a.detail, at: a.created_at }))),
+      ...(((nts.data as any[]) || []).map((n) => ({ id: "n_" + n.id, type: "nota" as const, body: n.body, at: n.created_at }))),
+    ].sort((x, y) => (x.at < y.at ? 1 : -1));
+    setHist(items);
   }, [id]);
+  useEffect(() => { loadHist(); }, [loadHist]);
 
   if (!lead) {
     return (
@@ -58,27 +79,39 @@ export default function LeadDetail() {
   const emp = getEmp(lead.empreendimento_id);
   const dossie = dossies[id];
   const tasks = allTasks.filter((t) => t.lead_id === id);
-  const acts = actMap[id] || [];
-  const channelMsgs = msgs.filter((m) => m.channel === channel);
-
-  function send() {
-    if (!draft.trim()) return;
-    setMsgs((m) => [...m, { id: "new" + m.length, channel, direction: "outbound", body: draft, at: new Date().toISOString(), status: "sent" }]);
-    setDraft("");
-  }
+  const waHref = `https://wa.me/${(lead.phone || "").replace(/\D/g, "")}`;
 
   async function saveNote() {
     const body = noteDraft.trim();
     if (!body || !lead) return;
     setSavingNote(true);
     const { data: auth } = await supabase.auth.getUser();
-    const { data, error } = await supabase.from("crm_notas")
-      .insert({ account_id: lead.account_id, lead_id: id, body, author_id: auth?.user?.id || null })
-      .select("id, body, created_at").single();
+    const { error } = await supabase.from("crm_notas")
+      .insert({ account_id: lead.account_id, lead_id: id, body, author_id: auth?.user?.id || null });
     setSavingNote(false);
     if (error) { alert("Não consegui salvar a anotação: " + error.message); return; }
-    if (data) { setNotes((n) => [data as DbNote, ...n]); setNoteDraft(""); }
+    setNoteDraft(""); loadHist();
   }
+
+  // Registra ligação na timeline (sem telefonia integrada: log do resultado).
+  async function registrarChamada() {
+    const nota = callNote.trim();
+    await logActivity(id, "chamada", { nota: nota || null });
+    setCallNote(""); setCTab("nota"); loadHist();
+  }
+
+  // Registra que o WhatsApp foi aberto (abre o wa.me em nova aba).
+  function abrirWhatsApp() {
+    logActivity(id, "whatsapp", {}).then(loadHist);
+    window.open(waHref, "_blank");
+  }
+
+  // Ações que também registram na timeline.
+  const doStage = (sid: string) => { moveStage(id, sid); logActivity(id, "stage_change", { to: sid }).then(loadHist); };
+  const doWon = () => { setStatus(id, "won"); logActivity(id, "status", { status: "won" }).then(loadHist); };
+  const doReactivate = () => { setStatus(id, "active"); logActivity(id, "status", { status: "active" }).then(loadHist); };
+  const doReassign = (v: string) => { reassign(id, v); logActivity(id, "assign", { owner_id: v }).then(loadHist); };
+  const doLost = (reason: string) => { setStatus(id, "discarded", reason); logActivity(id, "status", { status: "discarded", reason }).then(loadHist); };
 
   return (
     <div className="p-6 max-w-[1200px] mx-auto">
@@ -92,7 +125,7 @@ export default function LeadDetail() {
             <Trophy size={16} />
             <span><strong>Negócio ganho</strong> 🎉{lead.valor != null && ` · ${brl(lead.valor)}`}</span>
           </div>
-          <button className="btn-outline !py-1.5 text-xs shrink-0" onClick={() => setStatus(id, "active")}>
+          <button className="btn-outline !py-1.5 text-xs shrink-0" onClick={doReactivate}>
             <RotateCcw size={14} /> Reabrir
           </button>
         </div>
@@ -104,7 +137,7 @@ export default function LeadDetail() {
             <Leaf size={16} />
             <span><strong>Lead perdido</strong>{lead.discard_reason && ` · ${lead.discard_reason}`} — entrou em <strong>nutrição leve</strong> (sequência automática). Se der sinal de vida, volta para o corretor.</span>
           </div>
-          <button className="btn-outline !py-1.5 text-xs shrink-0" onClick={() => setStatus(id, "active")}>
+          <button className="btn-outline !py-1.5 text-xs shrink-0" onClick={doReactivate}>
             <RotateCcw size={14} /> Reativar
           </button>
         </div>
@@ -140,7 +173,7 @@ export default function LeadDetail() {
             </button>
             {lead.status === "active" && (
               <div className="flex items-center gap-2">
-                <button onClick={() => setStatus(id, "won")}
+                <button onClick={doWon}
                   className="btn !py-1.5 !px-3.5 text-sm bg-emerald-600 text-white hover:bg-emerald-700"><Trophy size={15} /> Ganho</button>
                 <button onClick={() => setShowDiscard(true)}
                   className="btn !py-1.5 !px-3.5 text-sm bg-rose-500 text-white hover:bg-rose-600">Perdido</button>
@@ -157,7 +190,7 @@ export default function LeadDetail() {
               const filled = i <= curIdx && lead.status === "active";
               const disabled = lead.status !== "active";
               return (
-                <button key={s.id} disabled={disabled} onClick={() => moveStage(id, s.id)} title={s.name}
+                <button key={s.id} disabled={disabled} onClick={() => doStage(s.id)} title={s.name}
                   className={`flex-1 min-w-0 truncate text-[11px] font-semibold py-2 px-1 rounded transition-colors ${filled ? "bg-brand text-brand-fg" : "bg-surface-sunken text-ink-soft hover:bg-surface-muted"} ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}>
                   {s.name}
                 </button>
@@ -183,7 +216,7 @@ export default function LeadDetail() {
           <div className="flex items-center gap-2 rounded-lg border border-line pl-2.5 pr-1.5 py-1">
             <UserCheck size={14} className="text-ink-faint" />
             <span className="text-xs text-ink-faint">Responsável</span>
-            <select value={lead.owner_id || ""} onChange={(e) => reassign(id, e.target.value)}
+            <select value={lead.owner_id || ""} onChange={(e) => doReassign(e.target.value)}
               className="appearance-none bg-transparent text-sm font-semibold text-ink cursor-pointer focus:outline-none pr-1">
               <option value="">— Não atribuído —</option>
               {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -209,7 +242,7 @@ export default function LeadDetail() {
             <div className="flex gap-2">
               <button className="btn-outline flex-1" onClick={() => setShowDiscard(false)}>Cancelar</button>
               <button className="btn flex-1 bg-rose-500 text-white hover:bg-rose-600" disabled={!discardReason}
-                onClick={() => { setStatus(id, "discarded", discardReason); setShowDiscard(false); }}>
+                onClick={() => { doLost(discardReason); setShowDiscard(false); }}>
                 <Trash2 size={15} /> Descartar
               </button>
             </div>
@@ -254,35 +287,76 @@ export default function LeadDetail() {
           {/* COMPORTAMENTO & TRACKING */}
           <TrackingPanel leadId={id} />
 
-          {/* HUB OMNICHANNEL */}
+          {/* COMPOSER (abas tipo Pipedrive) */}
           <section className="card overflow-hidden">
-            <div className="flex border-b border-line">
-              {(["whatsapp", "email"] as const).map((c) => (
-                <button key={c} onClick={() => setChannel(c)}
-                  className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${channel === c ? "border-brand text-brand" : "border-transparent text-ink-soft hover:text-ink"}`}>
-                  {c === "whatsapp" ? <MessageCircle size={15} /> : <Mail size={15} />}
-                  {c === "whatsapp" ? "WhatsApp" : "E-mail"}
+            <div className="flex border-b border-line overflow-x-auto">
+              {([
+                ["nota", "Anotação", StickyNote],
+                ["atividade", "Atividade", CheckSquare],
+                ["chamada", "Chamada", Phone],
+                ["whatsapp", "WhatsApp", MessageCircle],
+                ["email", "E-mail", Mail],
+              ] as const).map(([tid, label, Icon]) => (
+                <button key={tid} onClick={() => setCTab(tid)}
+                  className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ${cTab === tid ? "border-brand text-brand" : "border-transparent text-ink-soft hover:text-ink"}`}>
+                  <Icon size={15} /> {label}
                 </button>
               ))}
-              <div className="flex-1" />
-              <span className="self-center pr-4 text-[11px] text-ink-faint">Hub omnichannel · sem sair do CRM</span>
             </div>
-            <div className="p-4 space-y-3 max-h-80 overflow-auto bg-surface-muted/40">
-              {channelMsgs.length === 0 && <div className="text-center text-sm text-ink-faint py-8">Nenhuma mensagem neste canal ainda.</div>}
-              {channelMsgs.map((m) => (
-                <div key={m.id} className={`flex ${m.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm ${m.direction === "outbound" ? "bg-brand text-brand-fg rounded-br-sm" : "bg-surface border border-line rounded-bl-sm"}`}>
-                    <p>{m.body}</p>
-                    <div className={`text-[10px] mt-1 ${m.direction === "outbound" ? "text-brand-fg/70" : "text-ink-faint"}`}>{timeLabel(m.at)}{m.status ? ` · ${m.status}` : ""}</div>
+            <div className="p-4">
+              {cTab === "nota" && (
+                <>
+                  <textarea className="input resize-none" rows={3} placeholder="Escrever anotação…" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} />
+                  <button className="btn-brand mt-2 !py-1.5 text-xs disabled:opacity-60" disabled={!noteDraft.trim() || savingNote} onClick={saveNote}>{savingNote ? "Salvando…" : "Salvar anotação"}</button>
+                </>
+              )}
+              {cTab === "atividade" && (
+                <AddTask onAdd={(title, due) => { addTask(id, title, due); logActivity(id, "tarefa", { title }).then(loadHist); setCTab("nota"); }} onCancel={() => setCTab("nota")} />
+              )}
+              {cTab === "chamada" && (
+                <div className="space-y-2">
+                  <a href={`tel:${(lead.phone || "").replace(/[^\d+]/g, "")}`} className="btn-outline w-full justify-center"><Phone size={15} /> Ligar para {lead.phone || "—"}</a>
+                  <textarea className="input resize-none" rows={2} placeholder="Resultado da ligação…" value={callNote} onChange={(e) => setCallNote(e.target.value)} />
+                  <button className="btn-brand !py-1.5 text-xs" onClick={registrarChamada}>Registrar ligação</button>
+                </div>
+              )}
+              {cTab === "whatsapp" && (
+                <div className="space-y-2">
+                  <p className="text-sm text-ink-soft">Abre a conversa no WhatsApp com <strong>{lead.phone || "—"}</strong> e registra na timeline.</p>
+                  <button className="btn w-full justify-center text-white" style={{ background: "#25D366" }} onClick={abrirWhatsApp}><MessageCircle size={15} /> Abrir WhatsApp</button>
+                </div>
+              )}
+              {cTab === "email" && (
+                <div className="space-y-2">
+                  <input className="input" placeholder="Assunto" value={emailSubj} onChange={(e) => setEmailSubj(e.target.value)} />
+                  <textarea className="input resize-none" rows={4} placeholder="Escrever e-mail…" value={emailBody} onChange={(e) => setEmailBody(e.target.value)} />
+                  <div className="flex items-center gap-2">
+                    <button className="btn-brand !py-1.5 text-xs opacity-60 cursor-not-allowed" disabled title="Fase 4">Enviar (em breve)</button>
+                    <span className="text-[11px] text-ink-faint">Envio via Resend chega na Fase 4.</span>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-            <div className="p-3 border-t border-line flex items-center gap-2">
-              <input className="input" placeholder={channel === "whatsapp" ? "Mensagem de WhatsApp…" : "Escrever e-mail…"}
-                value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} />
-              <button className="btn-brand !px-3" onClick={send}><Send size={16} /></button>
-            </div>
+          </section>
+
+          {/* HISTÓRICO (timeline real) */}
+          <section className="card p-5">
+            <h2 className="font-semibold text-ink mb-3 text-sm uppercase tracking-wide text-ink-faint">Histórico</h2>
+            {hist.length === 0 ? (
+              <p className="text-sm text-ink-faint">Sem histórico ainda. Anotações, ligações e mudanças aparecem aqui.</p>
+            ) : (
+              <ol className="space-y-3">
+                {hist.map((h) => (
+                  <li key={h.id} className="flex gap-2.5 text-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand mt-1.5 shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-ink whitespace-pre-wrap">{histLabel(h, getStage, getMember)}</div>
+                      <div className="text-[11px] text-ink-faint">{timeAgo(h.at)}</div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
           </section>
         </div>
 
@@ -340,40 +414,6 @@ export default function LeadDetail() {
             </div>
           </section>
 
-          {/* Notas */}
-          <section className="card p-5">
-            <h2 className="flex items-center gap-2 font-semibold text-ink mb-3"><StickyNote size={16} className="text-brand" /> Anotações</h2>
-            <div className="space-y-3">
-              {notes.map((n) => (
-                <div key={n.id} className="text-sm">
-                  <p className="text-ink whitespace-pre-wrap">{n.body}</p>
-                  <div className="text-[11px] text-ink-faint mt-1">{timeAgo(n.created_at)}</div>
-                </div>
-              ))}
-              {notes.length === 0 && <p className="text-sm text-ink-faint">Sem anotações.</p>}
-            </div>
-            <textarea className="input mt-3 resize-none" rows={2} placeholder="Escrever anotação…"
-              value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveNote(); }} />
-            <button className="btn-brand w-full mt-2 !py-1.5 text-xs disabled:opacity-60"
-              disabled={!noteDraft.trim() || savingNote} onClick={saveNote}>
-              {savingNote ? "Salvando…" : "Salvar anotação"}
-            </button>
-          </section>
-
-          {/* Atividades */}
-          <section className="card p-5">
-            <h2 className="font-semibold text-ink mb-3 text-sm uppercase tracking-wide text-ink-faint">Atividades</h2>
-            <ol className="space-y-2.5">
-              {acts.map((a) => (
-                <li key={a.id} className="flex gap-2.5 text-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand mt-1.5 shrink-0" />
-                  <div><span className="text-ink">{a.text}</span><span className="text-[11px] text-ink-faint block">{timeAgo(a.at)}</span></div>
-                </li>
-              ))}
-              {acts.length === 0 && <p className="text-sm text-ink-faint">Sem atividades ainda.</p>}
-            </ol>
-          </section>
         </div>
       </div>
     </div>
