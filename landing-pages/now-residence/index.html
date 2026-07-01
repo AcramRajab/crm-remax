@@ -129,14 +129,12 @@ section .hero-fade p,.hero h1{text-shadow:0 2px 24px rgba(0,0,0,.45)}
 /* --- FOOTER REVEAL (fixo atrás, igual à referência) --- */
 .footer-sticky{position:fixed;bottom:0;left:0;width:100%;height:100vh;z-index:1;background:var(--c-darker);color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow:hidden}
 
-/* --- MARCA D'ÁGUA REMAX (parceria/comercialização) --- */
-.wm-remax{position:relative}
-.wm-remax::after,.card-img-wrap::after{content:"";position:absolute;right:1rem;bottom:1rem;width:108px;height:42px;
-  background:url("assets/remax-white.webp") right bottom/contain no-repeat;opacity:.72;
-  pointer-events:none;z-index:5;filter:drop-shadow(0 1px 4px rgba(0,0,0,.65))}
-.amenity::before{content:"";position:absolute;right:.45rem;bottom:.45rem;width:64px;height:24px;
-  background:url("assets/remax-white.webp") right bottom/contain no-repeat;opacity:.7;
-  pointer-events:none;z-index:5;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
+/* --- MARCA D'ÁGUA REMAX (em TODAS as seções) --- */
+.wmk{position:relative}
+.wmk::after{content:"";position:absolute;right:1.4rem;bottom:1.2rem;width:124px;height:40px;
+  background:url("assets/remax-white.webp") center right/contain no-repeat;opacity:.20;
+  pointer-events:none;z-index:4}
+.wmk-light::after{background-image:url("assets/remax-dark.webp");opacity:.14}
 /* chip escuro pra exibir o logo branco sobre fundo claro */
 .remax-chip{display:inline-flex;align-items:center;gap:.6rem;background:var(--c-darker);
   padding:.55rem .9rem;border-radius:4px}
@@ -228,7 +226,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
 <div class="wrapper" id="top">
 
   <!-- HERO -->
-  <section class="h-screen relative flex items-end overflow-hidden wm-remax">
+  <section class="h-screen relative flex items-end overflow-hidden wmk">
     <img alt="NOW Residence — fachada" class="absolute inset-0 w-full h-full object-cover hero-img" src="assets/hero-facade.webp"/>
     <div class="absolute inset-0 hero-overlay"></div>
     <div class="topo" style="top:-4%;right:-2%;width:46%;color:#fff;opacity:.18" data-topo="22"></div>
@@ -249,7 +247,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </section>
 
   <!-- BOAT SHOW — CONDIÇÕES EXCLUSIVAS -->
-  <section id="boatshow" class="py-24 md:py-32 bg-[var(--c-darker)] relative overflow-hidden">
+  <section id="boatshow" class="py-24 md:py-32 bg-[var(--c-darker)] relative overflow-hidden wmk">
     <div class="topo" style="top:-4%;right:-3%;width:34%;color:var(--c-accent);opacity:.12" data-topo="18"></div>
     <div class="container relative z-10">
       <div class="max-w-3xl">
@@ -298,7 +296,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </section>
 
   <!-- INTRO / MANIFESTO -->
-  <section id="empreendimento" class="py-28 md:py-40 bg-[var(--c-dark)] relative">
+  <section id="empreendimento" class="py-28 md:py-40 bg-[var(--c-dark)] relative wmk">
     <div class="topo" style="top:8%;left:-3%;width:24%;color:#fff;opacity:.07" data-topo="16"></div>
     <div class="container grid md:grid-cols-2 gap-12 md:gap-20 items-start relative z-10">
       <div>
@@ -320,7 +318,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </section>
 
   <!-- STATS BAND -->
-  <section class="py-20 bg-[var(--c-cream)] text-[var(--c-text)]">
+  <section class="py-20 bg-[var(--c-cream)] text-[var(--c-text)] wmk wmk-light">
     <div class="container">
       <div class="kicker text-[var(--c-accent)] mb-12 text-center">Itajaí — o destino inteligente para grandes investimentos</div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
@@ -333,7 +331,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </section>
 
   <!-- LOCALIZAÇÃO -->
-  <section id="localizacao" class="py-28 md:py-36 bg-[var(--c-dark)] relative overflow-hidden">
+  <section id="localizacao" class="py-28 md:py-36 bg-[var(--c-dark)] relative overflow-hidden wmk">
     <div class="topo" style="bottom:-6%;right:-4%;width:40%;color:#fff;opacity:.06" data-topo="20"></div>
     <div class="container grid md:grid-cols-2 gap-14 items-center relative z-10">
       <div>
@@ -356,7 +354,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </section>
 
   <!-- DIFERENCIAIS (card stack) -->
-  <section class="stack-section">
+  <section class="stack-section wmk">
     <div class="text-center mb-16 px-6">
       <div class="kicker accent mb-4">Moderno, funcional e rentável</div>
       <h2 class="display text-4xl md:text-6xl">Um investimento que se <span class="accent">adapta ao seu estilo</span></h2>
@@ -402,7 +400,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </section>
 
   <!-- LAZER (25+ áreas) -->
-  <section id="lazer" class="py-28 md:py-36 bg-[var(--c-cream)] text-[var(--c-text)] relative">
+  <section id="lazer" class="py-28 md:py-36 bg-[var(--c-cream)] text-[var(--c-text)] relative wmk wmk-light">
     <div class="container relative z-10">
       <div class="max-w-3xl mb-14">
         <div class="kicker text-[var(--c-accent)] mb-5">Mais de 25 espaços de área comum</div>
@@ -427,7 +425,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </section>
 
   <!-- PLANTAS -->
-  <section id="plantas" class="py-28 md:py-36 bg-[var(--c-dark)] relative overflow-hidden">
+  <section id="plantas" class="py-28 md:py-36 bg-[var(--c-dark)] relative overflow-hidden wmk">
     <div class="topo" style="top:-4%;right:-3%;width:30%;color:#fff;opacity:.07" data-topo="16"></div>
     <div class="container grid md:grid-cols-2 gap-14 items-center relative z-10">
       <div>
@@ -455,7 +453,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </section>
 
   <!-- PERSONAS / PARA QUEM -->
-  <section class="py-28 md:py-36 bg-[var(--c-darker)] relative">
+  <section class="py-28 md:py-36 bg-[var(--c-darker)] relative wmk">
     <div class="container relative z-10">
       <div class="max-w-3xl mb-14">
         <div class="kicker accent mb-5">Para quem é o NOW</div>
@@ -473,7 +471,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </section>
 
   <!-- CONSTRUTORA + HOUSI -->
-  <section class="py-24 bg-[var(--c-dark)] border-t border-white/10">
+  <section class="py-24 bg-[var(--c-dark)] border-t border-white/10 wmk">
     <div class="container grid md:grid-cols-2 gap-12 items-center">
       <div>
         <div class="kicker accent mb-4">Realização</div>
@@ -489,7 +487,7 @@ html,body{overflow-y:auto !important;overflow-x:hidden !important;height:auto !i
   </section>
 
   <!-- CONTATO / CONVERSÃO (lead-gen-hibrido) -->
-  <section id="contato" class="py-28 md:py-36 bg-[var(--c-cream)] text-[var(--c-text)] relative overflow-hidden">
+  <section id="contato" class="py-28 md:py-36 bg-[var(--c-cream)] text-[var(--c-text)] relative overflow-hidden wmk wmk-light">
     <div class="topo" style="bottom:-8%;left:-4%;width:34%;color:var(--c-accent);opacity:.16" data-topo="18"></div>
     <div class="container grid md:grid-cols-2 gap-16 items-center relative z-10">
       <div>
