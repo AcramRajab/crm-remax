@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Flame, Search, Leaf } from "lucide-react";
+import { Flame, Search, Leaf, Download, X } from "lucide-react";
 import { timeAgo, scoreColor } from "../lib/format";
 import { useSession } from "../lib/session";
 import { useStore } from "../lib/store";
@@ -10,14 +10,22 @@ type Filter = "ativos" | "descartados" | "todos";
 
 export default function Leads() {
   const { user, canSeeAll } = useSession();
-  const { leads: all, getMember, getStage, stages } = useStore();
+  const { leads: all, getMember, getStage, stages, members, emps, getEmp } = useStore();
   const [params, setParams] = useSearchParams();
   const q = params.get("q") || "";
   const [filter, setFilter] = useState<Filter>("ativos");
+  const [fOwner, setFOwner] = useState("");
+  const [fStage, setFStage] = useState("");
+  const [fEmp, setFEmp] = useState("");
 
-  let leads = canSeeAll ? all : all.filter((l) => l.owner_id === user.id);
+  const base = canSeeAll ? all : all.filter((l) => l.owner_id === user.id);
+
+  let leads = base;
   if (filter === "ativos") leads = leads.filter((l) => l.status === "active");
   else if (filter === "descartados") leads = leads.filter((l) => l.status === "discarded" || l.status === "lost");
+  if (fOwner) leads = leads.filter((l) => l.owner_id === fOwner);
+  if (fStage) leads = leads.filter((l) => (l.stage_id || stages[0]?.id) === fStage);
+  if (fEmp) leads = leads.filter((l) => l.empreendimento_id === fEmp);
   if (q.trim()) {
     const t = q.toLowerCase();
     leads = leads.filter((l) =>
@@ -27,9 +35,39 @@ export default function Leads() {
   }
 
   const counts = {
-    ativos: (canSeeAll ? all : all.filter((l) => l.owner_id === user.id)).filter((l) => l.status === "active").length,
-    descartados: (canSeeAll ? all : all.filter((l) => l.owner_id === user.id)).filter((l) => l.status !== "active").length,
+    ativos: base.filter((l) => l.status === "active").length,
+    descartados: base.filter((l) => l.status !== "active").length,
   };
+  const hasExtraFilters = !!(fOwner || fStage || fEmp);
+  function clearFilters() { setFOwner(""); setFStage(""); setFEmp(""); }
+
+  function baixarCsv() {
+    const esc = (v: any) => {
+      const s = v == null ? "" : String(v);
+      return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const headers = ["Nome", "E-mail", "Telefone", "Persona", "Etapa", "Origem", "Responsável", "Empreendimento", "Valor", "Score", "Status", "Criado"];
+    const lines = [headers.join(",")];
+    for (const l of leads) {
+      lines.push([
+        `${l.first_name} ${l.last_name}`.trim(),
+        l.email, l.phone, l.persona,
+        getStage(l.stage_id)?.name || stages[0]?.name || "",
+        l.lt_source,
+        getMember(l.owner_id)?.name || "",
+        getEmp(l.empreendimento_id)?.name || "",
+        l.valor ?? "", l.score, l.status, l.created_at,
+      ].map(esc).join(","));
+    }
+    const csv = "﻿" + lines.join("\n"); // BOM p/ acentos no Excel
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="p-6">
@@ -44,14 +82,36 @@ export default function Leads() {
             <input className="input !pl-9 w-56" placeholder="Buscar…" value={q}
               onChange={(e) => setParams(e.target.value ? { q: e.target.value } : {})} />
           </div>
+          <button className="btn-outline" onClick={baixarCsv} disabled={leads.length === 0} title="Exportar os leads filtrados">
+            <Download size={15} /> Baixar CSV
+          </button>
         </div>
       </div>
 
       {/* Filtros de status */}
-      <div className="flex items-center gap-1 mb-4">
+      <div className="flex items-center gap-1 mb-3">
         <FilterBtn active={filter === "ativos"} onClick={() => setFilter("ativos")} label={`Ativos · ${counts.ativos}`} />
         <FilterBtn active={filter === "descartados"} onClick={() => setFilter("descartados")} label={`Descartados / nutrição · ${counts.descartados}`} />
         <FilterBtn active={filter === "todos"} onClick={() => setFilter("todos")} label="Todos" />
+      </div>
+
+      {/* Filtros avançados */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <select className="input !py-1.5 text-sm w-auto" value={fOwner} onChange={(e) => setFOwner(e.target.value)}>
+          <option value="">Responsável: todos</option>
+          {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+        <select className="input !py-1.5 text-sm w-auto" value={fStage} onChange={(e) => setFStage(e.target.value)}>
+          <option value="">Etapa: todas</option>
+          {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <select className="input !py-1.5 text-sm w-auto" value={fEmp} onChange={(e) => setFEmp(e.target.value)}>
+          <option value="">Empreendimento: todos</option>
+          {emps.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+        {hasExtraFilters && (
+          <button className="btn-ghost !py-1.5 text-xs text-ink-soft" onClick={clearFilters}><X size={13} /> Limpar filtros</button>
+        )}
       </div>
 
       <div className="card overflow-hidden">
