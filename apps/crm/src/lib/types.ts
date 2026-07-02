@@ -67,6 +67,10 @@ export interface Lead {
   origin: Origin;
   ft_source: string; // first-touch
   lt_source: string; // last-touch
+  ft_medium?: string | null;
+  lt_medium?: string | null;
+  ft_campaign?: string | null;
+  lt_campaign?: string | null;
   followup_count: number;
   created_at: string; // ISO
   last_activity: string; // ISO

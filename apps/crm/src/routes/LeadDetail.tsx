@@ -484,8 +484,10 @@ export default function LeadDetail() {
           <section className="card p-5">
             <h2 className="font-semibold text-ink mb-3 text-sm uppercase tracking-wide text-ink-faint">Atribuição</h2>
             <div className="space-y-2 text-sm">
-              <Row k="First-touch" v={lead.ft_source} />
-              <Row k="Last-touch" v={lead.lt_source} />
+              <Row k="First-touch" v={lead.ft_source} cap={false} />
+              <Row k="Last-touch" v={lead.lt_source} cap={false} />
+              {lead.lt_medium && <Row k="Mídia" v={lead.lt_medium} cap={false} />}
+              {lead.lt_campaign && <Row k="Campanha" v={lead.lt_campaign} cap={false} />}
               <Row k="Origem" v={lead.origin} />
               {lead.channel && <Row k="Canal" v={lead.channel} />}
               <Row k="Responsável" v={owner?.name || "—"} />

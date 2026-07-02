@@ -713,7 +713,7 @@ document.querySelectorAll('[data-topo]').forEach(function(el){
     var data=Object.fromEntries(new FormData(form).entries());
     if(window.NOW_TRACK) NOW_TRACK("Lead",Object.assign({channel:"whatsapp",source:src,corretor:T.corretor||null},data));
     if(fmsg){ fmsg.textContent="Redirecionando pro WhatsApp…"; fmsg.style.color="#25D366"; }
-    var payload=Object.assign({slug:T.slug,corretor:T.corretor||null,channel:"whatsapp",page_url:location.href},data);
+    var payload=Object.assign({slug:T.slug,corretor:T.corretor||null,channel:"whatsapp",utm_ft:T.utm_ft,utm_lt:T.utm_lt,page_url:location.href},data);
     // keepalive: o POST completa mesmo com a navegação pro WhatsApp em seguida.
     fetch("/api/lead",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify(payload),keepalive:true})
@@ -756,7 +756,7 @@ document.getElementById("leadForm").addEventListener("submit",function(e){
   if(msg){ msg.textContent="Enviando…"; msg.style.color="var(--c-accent)"; }
   /* Ingestão: POST pro Worker. A CONTA é resolvida no servidor pelo hostname
      (anti-spoof); o browser só manda o slug do empreendimento + os dados. */
-  var payload=Object.assign({slug:(window.NOW_TRACKING||{}).slug,corretor:(window.NOW_TRACKING||{}).corretor||null,page_url:location.href},data);
+  var payload=Object.assign({slug:(window.NOW_TRACKING||{}).slug,corretor:(window.NOW_TRACKING||{}).corretor||null,utm_ft:(window.NOW_TRACKING||{}).utm_ft,utm_lt:(window.NOW_TRACKING||{}).utm_lt,page_url:location.href},data);
   fetch("/api/lead",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify(payload),keepalive:true})
     .catch(function(){})

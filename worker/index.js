@@ -135,11 +135,14 @@ async function handleLead(request, env, url) {
   const last_name = parts.length ? parts.join(" ") : null;
 
   const channel = String(data.channel || "form");
+  const ft = (data.utm_ft && typeof data.utm_ft === "object") ? data.utm_ft : {};
+  const lt = (data.utm_lt && typeof data.utm_lt === "object") ? data.utm_lt : {};
   const journey = {
     channel,
     interesse: data.interesse || null,
     corretor_ref: ref || null,
-    indicador: indicador ? { nome: indicador.nome, imobiliaria: indicador.imobiliaria, telefone: indicador.telefone } : null
+    indicador: indicador ? { nome: indicador.nome, imobiliaria: indicador.imobiliaria, telefone: indicador.telefone } : null,
+    utm: { ft, lt }   // guarda tudo (inclui gclid/fbclid/content/term)
   };
 
   await sb("crm_leads", { method: "POST", body: {
@@ -149,6 +152,8 @@ async function handleLead(request, env, url) {
     first_name, last_name,
     origin: indicador ? "indicacao" : "inbound",
     owner_id,
+    ft_source: ft.utm_source || null, ft_medium: ft.utm_medium || null, ft_campaign: ft.utm_campaign || null,
+    lt_source: lt.utm_source || null, lt_medium: lt.utm_medium || null, lt_campaign: lt.utm_campaign || null,
     journey
   }});
 
@@ -158,7 +163,7 @@ async function handleLead(request, env, url) {
     event_id: crypto.randomUUID(),
     event_name: "Lead",
     page_url: data.page_url || null,
-    properties: { channel, interesse: data.interesse || null, corretor_ref: ref || null }
+    properties: { channel, interesse: data.interesse || null, corretor_ref: ref || null, utm: { ft, lt } }
   }});
 
   return json({ ok: true });

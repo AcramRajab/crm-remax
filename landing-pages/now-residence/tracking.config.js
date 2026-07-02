@@ -82,3 +82,27 @@ window.NOW_TRACKING = {
   window.NOW_TRACK = track;
   document.addEventListener("DOMContentLoaded", function () { track("PageView"); });
 })();
+
+/* UTM / atribuição: captura utm_* + gclid/fbclid da URL. Guarda first-touch
+   (nunca sobrescreve) e last-touch (sempre atualiza) no localStorage, pra
+   viajar no payload do lead mesmo que o cara navegue antes de converter. */
+(function () {
+  function readUtm() {
+    var q = new URLSearchParams(location.search), u = {};
+    ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].forEach(function (k) {
+      var v = q.get(k); if (v) u[k] = v;
+    });
+    var g = q.get("gclid"), f = q.get("fbclid");
+    if (g) u.gclid = g; if (f) u.fbclid = f;
+    return u;
+  }
+  var cur = readUtm(), has = Object.keys(cur).length > 0, ft = {}, lt = {};
+  try {
+    if (has && !localStorage.getItem("now_utm_ft")) localStorage.setItem("now_utm_ft", JSON.stringify(cur));
+    if (has) localStorage.setItem("now_utm_lt", JSON.stringify(cur));
+    ft = JSON.parse(localStorage.getItem("now_utm_ft") || "{}");
+    lt = JSON.parse(localStorage.getItem("now_utm_lt") || "{}");
+  } catch (e) {}
+  window.NOW_TRACKING.utm_ft = Object.keys(ft).length ? ft : cur;
+  window.NOW_TRACKING.utm_lt = Object.keys(lt).length ? lt : cur;
+})();
